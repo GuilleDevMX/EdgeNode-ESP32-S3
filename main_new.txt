@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include "ApiServer.h"
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <AsyncTCP.h>
@@ -153,7 +152,7 @@ void setup() {
     if (!SecMgr.isProvisioned()) {
         ESP_LOGI(TAG, "SYS - Nodo sin aprovisionar. Modo OOBE.");
         NetMgr.startSecureProvisioning();
-        ApiSrv.begin(true);
+        NetMgr.setupWebServerOOBE(&server);
         return;
     } else {
         ESP_LOGI(TAG, "SYS - Perfil encontrado. Iniciando red.");
@@ -161,12 +160,12 @@ void setup() {
         if (!NetMgr.connectToOperationalWiFi()) {
             ESP_LOGE(TAG, "NET - Fallo WiFi. Modo rescate.");
             NetMgr.startSecureProvisioning();
-        ApiSrv.begin(true);      
+        NetMgr.setupWebServerOOBE(&server);      
             return;
         }
         
         ESP_LOGI(TAG, "NET - Conexión exitosa. Levantando API.");
-        ApiSrv.begin(false);
+        setupWebServerAPI();
     }
 }
 
@@ -177,27 +176,28 @@ void loop() {
     // 2. TELEMETRÍA WEBSOCKETS
     // =========================================================
     // 🛡️ CORRECCIÓN: Solo enviamos si el WiFi está vivo
-    
-    static unsigned long lastTelemetry = 0;
-    if (millis() - lastTelemetry > 5000) {
-        lastTelemetry = millis();
-        JsonDocument doc; 
-        doc["type"] = "telemetry";
-        
-        doc["temperature"] = TelemetryMgr.getTemperature(); 
-        doc["humidity"] = TelemetryMgr.getHumidity(); 
-        doc["battery_v"] = TelemetryMgr.getBatteryVoltage();
-        doc["power_state"] = TelemetryMgr.getPowerState();
-        doc["heap_free"] = ESP.getFreeHeap(); 
-        doc["psram_free"] = ESP.getFreePsram(); 
-        doc["uptime"] = millis() / 1000;
-        
-        String jsonOutput; 
-        serializeJson(doc, jsonOutput); 
-        ApiSrv.broadcastTelemetry(jsonOutput);
+    if(WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED && ws.count() > 0) {
+        static unsigned long lastTelemetry = 0;
+        if (millis() - lastTelemetry > 5000) {
+            lastTelemetry = millis();
+            JsonDocument doc; 
+            doc["type"] = "telemetry";
+            
+            doc["temperature"] = TelemetryMgr.getTemperature(); 
+            doc["humidity"] = TelemetryMgr.getHumidity(); 
+            doc["battery_v"] = TelemetryMgr.getBatteryVoltage();
+            doc["power_state"] = TelemetryMgr.getPowerState();
+            doc["heap_free"] = ESP.getFreeHeap(); 
+            doc["psram_free"] = ESP.getFreePsram(); 
+            doc["uptime"] = millis() / 1000;
+            
+            String jsonOutput; 
+            serializeJson(doc, jsonOutput); 
+            ws.textAll(jsonOutput);
+        }
     }
     
-    ApiSrv.handleWebSocket(); 
+    ws.cleanupClients(); 
     vTaskDelay(pdMS_TO_TICKS(10)); // Ceder control al RTOS
     esp_task_wdt_reset();
     
@@ -206,7 +206,7 @@ void loop() {
     // =========================================================
     if (pendingReboot) {
         if (millis() - rebootRequestTime >= REBOOT_DELAY_MS) {
-            ApiSrv.cleanup();
+            cleanupWebServer();
             ESP_LOGI(TAG, "SYS - Reiniciando por solicitud del administrador..."); 
             Serial.flush(); 
             ESP.restart();
