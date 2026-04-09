@@ -24,6 +24,7 @@
 #include <esp_task_wdt.h>
 #include "AiManager.h"
 #include <map>
+#include <esp_check.h>
 
 // --- ETIQUETA GLOBAL PARA LOS LOGS ---
 static const char *TAG = "EdgeSecOps";
@@ -55,129 +56,78 @@ String currentSessionToken = "";
 String currentSessionRole = ""; 
 time_t sessionExpirationEpoch = 0; 
 
-// --- RATE LIMITING PARA LOGIN ---
-// Verificación de rate limiting por IP
-
-
-// --- MOTOR DE INTELIGENCIA ARTIFICIAL (TinyML) ---
-
-
-
-
-
-
-
-
-// --- MIDDLEWARE DE FIREWALL ---
-
-
-// --- MIDDLEWARE RBAC MEJORADO ---
-
-
-// Helper para añadir headers de seguridad a todas las respuestas
-
-
-// --- MODOS DE RED ---
-
-
-
-// --- TAREA DE LOGGING DE DATOS (CSV) ---
-
-
-
-
-// --- TELEMETRÍA WEBSOCKETS MEJORADA ---
-
-
-// --- CONFIGURACIÓN DE NTP ---
-
-
-
-
-
-
-// --- SISTEMA DE AUDITORÍA (AUDIT TRAIL) ---
-
-
-// --- SERVIDORES WEB (API PRINCIPAL) ---
-
-
-
-// --- CICLO PRINCIPAL ---
-void setup() {
-    Serial.begin(115200);
-    initSecureRNG();
-
+// --- INICIALIZACIÓN DEL SISTEMA CON MANEJO DE ERRORES (ESP-IDF) ---
+esp_err_t init_system() {
     // 1. NVS con recovery
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_LOGW(TAG, "SYS - NVS requiere formateo.");
-        nvs_flash_erase();
+        ESP_RETURN_ON_ERROR(nvs_flash_erase(), TAG, "CRIT - Fallo al borrar NVS");
         err = nvs_flash_init();
     }
-    if (err != ESP_OK) ESP_LOGE(TAG, "CRIT - Fallo fatal en NVS: %s", esp_err_to_name(err));
+    ESP_RETURN_ON_ERROR(err, TAG, "CRIT - Fallo fatal en NVS");
 
     // 2. LittleFS
-    if(!LittleFS.begin(true)){
-        ESP_LOGE(TAG, "CRIT - Fallo montando LittleFS.");
-        while(1) { delay(100); }
-    }
+    ESP_RETURN_ON_FALSE(LittleFS.begin(true), ESP_FAIL, TAG, "CRIT - Fallo montando LittleFS.");
     
     // Inicializar TinyML
-    AiMgr.begin();
+    ESP_RETURN_ON_ERROR(AiMgr.begin(), TAG, "Failed to init AI");
 
-    if (!psramInit()) ESP_LOGW(TAG, "PSRAM no disponible - modo degradado activado");
-
+    if (!psramInit()) {
+        ESP_LOGW(TAG, "PSRAM no disponible - modo degradado activado");
+    }
 
     // 3. Inicialización de TODOS los Mutexes
     sessionMutex = xSemaphoreCreateMutex(); 
     nvsMutex = xSemaphoreCreateMutex();
     
     // Validar que los mutex se crearon correctamente antes de lanzar tareas
-    if (sessionMutex != NULL && nvsMutex != NULL) {
+    ESP_RETURN_ON_FALSE((sessionMutex != NULL && nvsMutex != NULL), ESP_ERR_NO_MEM, TAG, "CRIT - Fallo creando Mutex. RTOS inestable.");
 
-        esp_task_wdt_init(10, true);
-        esp_task_wdt_add(NULL);
+    esp_task_wdt_init(10, true);
+    esp_task_wdt_add(NULL);
 
-        TelemetryMgr.begin();
-    } else {
-        ESP_LOGE(TAG, "CRIT - Fallo creando Mutex. RTOS inestable.");
-        while(1) { delay(100); }
-    }
+    ESP_RETURN_ON_ERROR(TelemetryMgr.begin(), TAG, "Failed to init Telemetry");
 
     // 4. Inicialización de Módulos Externos
-    NotifMgr.begin(); // <-- Inicializar el gestor de correos
+    ESP_RETURN_ON_ERROR(NotifMgr.begin(), TAG, "Failed to init Notifications"); // Inicializar el gestor de correos
     // 4. MÁQUINA DE ESTADOS
-    SecMgr.begin();
+    ESP_RETURN_ON_ERROR(SecMgr.begin(), TAG, "Failed to init Security");
 
     if (!SecMgr.isProvisioned()) {
         ESP_LOGI(TAG, "SYS - Nodo sin aprovisionar. Modo OOBE.");
-        NetMgr.startSecureProvisioning();
-        ApiSrv.begin(true);
-        return;
+        ESP_RETURN_ON_ERROR(NetMgr.startSecureProvisioning(), TAG, "Failed to start secure provisioning");
+        ESP_RETURN_ON_ERROR(ApiSrv.begin(true), TAG, "Failed to start API Server in OOBE mode");
+        return ESP_OK;
     } else {
         ESP_LOGI(TAG, "SYS - Perfil encontrado. Iniciando red.");
         
         if (!NetMgr.connectToOperationalWiFi()) {
             ESP_LOGE(TAG, "NET - Fallo WiFi. Modo rescate.");
-            NetMgr.startSecureProvisioning();
-        ApiSrv.begin(true);      
-            return;
+            ESP_RETURN_ON_ERROR(NetMgr.startSecureProvisioning(), TAG, "Failed to start secure provisioning in rescue mode");
+            ESP_RETURN_ON_ERROR(ApiSrv.begin(true), TAG, "Failed to start API Server in rescue mode");      
+            return ESP_OK;
         }
         
         ESP_LOGI(TAG, "NET - Conexión exitosa. Levantando API.");
-        ApiSrv.begin(false);
+        ESP_RETURN_ON_ERROR(ApiSrv.begin(false), TAG, "Failed to start API Server");
+    }
+    return ESP_OK;
+}
+
+// --- CICLO PRINCIPAL ---
+void setup() {
+    Serial.begin(115200);
+    initSecureRNG();
+
+    if (init_system() != ESP_OK) {
+        ESP_LOGE(TAG, "System Halt - Inicializacion fallida.");
+        while(1) { delay(100); }
     }
 }
 
 void loop() {
-    NetMgr.handleLoop();
-
-    // =========================================================
-    // 2. TELEMETRÍA WEBSOCKETS
-    // =========================================================
-    // 🛡️ CORRECCIÓN: Solo enviamos si el WiFi está vivo
-    
+    NetMgr.handleLoop();    
     static unsigned long lastTelemetry = 0;
     if (millis() - lastTelemetry > 5000) {
         lastTelemetry = millis();
@@ -200,10 +150,7 @@ void loop() {
     ApiSrv.handleWebSocket(); 
     vTaskDelay(pdMS_TO_TICKS(10)); // Ceder control al RTOS
     esp_task_wdt_reset();
-    
-    // =========================================================
-    // 3. GESTIÓN DE REINICIO SEGURO
-    // =========================================================
+
     if (pendingReboot) {
         if (millis() - rebootRequestTime >= REBOOT_DELAY_MS) {
             ApiSrv.cleanup();

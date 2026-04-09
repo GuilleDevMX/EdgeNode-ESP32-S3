@@ -29,7 +29,7 @@ public:
     NotificationManager();
     
     // Inicialización
-    void begin();
+    esp_err_t begin();
     
     // Métodos de Comunicación Base
     bool sendEmail(String subject, String htmlMessage);

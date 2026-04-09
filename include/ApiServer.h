@@ -6,7 +6,7 @@
 
 class ApiServer {
 public:
-    void begin(bool oobeMode);
+    esp_err_t begin(bool oobeMode);
     void handleWebSocket();
     void broadcastTelemetry(const String& jsonOutput);
     void cleanup();

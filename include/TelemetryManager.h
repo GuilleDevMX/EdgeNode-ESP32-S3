@@ -17,7 +17,7 @@ private:
 
 public:
     TelemetryManager();
-    void begin();
+    esp_err_t begin();
 
     float getTemperature();
     float getHumidity();

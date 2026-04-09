@@ -16,6 +16,7 @@
 #include <map>
 #include <nvs.h>
 #include <nvs_flash.h>
+#include <esp_check.h>
 
 static const char *TAG = "ApiServer";
 
@@ -265,10 +266,9 @@ void writeAuditLog(String severity, String user, String action) {
     file.close();
 }
 
-void ApiServer::begin(bool oobeMode) {
+esp_err_t ApiServer::begin(bool oobeMode) {
     if (oobeMode) {
-        NetMgr.setupWebServerOOBE(&server);
-        return;
+        return NetMgr.setupWebServerOOBE(&server);
     }
 
     
@@ -908,7 +908,7 @@ void ApiServer::begin(bool oobeMode) {
         auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}"); addSecurityHeaders(r); request->send(r);
     });
 
-    NetMgr.setupOTAEndpoints(&server);
+    ESP_RETURN_ON_ERROR(NetMgr.setupOTAEndpoints(&server), TAG, "Failed to setup OTA endpoints");
 
     // ========================================================================
     // 6. ENRUTADOR FRONTEND CON HEADERS DE SEGURIDAD
@@ -930,6 +930,7 @@ void ApiServer::begin(bool oobeMode) {
 
     server.begin();
     ESP_LOGI(TAG, "SYS - API Web Server operativo. RBAC Zero-Trust + Headers de Seguridad Activos.");
+    return ESP_OK;
 }
 
 

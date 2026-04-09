@@ -33,7 +33,7 @@ public:
     SecurityManagerClass();
     
     // Ciclo de vida
-    void begin();
+    esp_err_t begin();
     bool isProvisioned();
     
     // Gestión de cuenta Root (OOBE y Actualizaciones)

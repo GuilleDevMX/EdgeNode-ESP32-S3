@@ -2,6 +2,7 @@
 #include "CryptoUtils.h"
 #include <esp_log.h>
 #include <nvs_flash.h>
+#include <esp_check.h>
 
 // Logger tag
 static const char* TAG = "SecMgr";
@@ -55,26 +56,26 @@ String SecurityManagerClass::hashPasswordWithSalt(const String& password,
 }
 
 // --- CICLO DE VIDA ---
-void SecurityManagerClass::begin() {
+esp_err_t SecurityManagerClass::begin() {
     // Unificar namespace: "users" con prefijo "root_"
-    if (xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-        Preferences prefs;
-        if (prefs.begin("users", true)) {
-            String rootUser = prefs.getString("root_name", "");
-            String rootHash = prefs.getString("root_hash", "");
-            prefs.end();
-            
-            // Provisionado si existen credenciales root válidas
-            provisioned = (rootUser != "" && rootHash != "");
-        } else {
-            ESP_LOGE(TAG, "Error abriendo namespace 'users'");
-            provisioned = false;
-        }
-        xSemaphoreGive(nvsMutex);
+    ESP_RETURN_ON_FALSE(xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(100)) == pdTRUE, ESP_ERR_TIMEOUT, TAG, "Timeout esperando mutex de NVS en begin()");
+    
+    Preferences prefs;
+    if (prefs.begin("users", true)) {
+        String rootUser = prefs.getString("root_name", "");
+        String rootHash = prefs.getString("root_hash", "");
+        prefs.end();
+        
+        // Provisionado si existen credenciales root válidas
+        provisioned = (rootUser != "" && rootHash != "");
     } else {
-        ESP_LOGE(TAG, "Timeout esperando mutex de NVS en begin()");
+        ESP_LOGE(TAG, "Error abriendo namespace 'users'");
         provisioned = false;
+        xSemaphoreGive(nvsMutex);
+        return ESP_FAIL;
     }
+    xSemaphoreGive(nvsMutex);
+    return ESP_OK;
 }
 
 bool SecurityManagerClass::isProvisioned() {

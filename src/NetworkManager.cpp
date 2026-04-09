@@ -10,6 +10,7 @@
 #include <Update.h>
 #include <time.h>
 #include <esp_log.h>
+#include <esp_check.h>
 
 static const char *TAG = "EdgeSecOps";
 
@@ -22,7 +23,7 @@ extern unsigned long rebootRequestTime;
 
 NetworkManager NetMgr;
 
-void NetworkManager::startSecureProvisioning() {
+esp_err_t NetworkManager::startSecureProvisioning() {
     Preferences nvs;
     nvs.begin("wifi", true);
     String ap_ssid = nvs.getString("ap_ssid", "");
@@ -46,7 +47,10 @@ void NetworkManager::startSecureProvisioning() {
         ESP_LOGI(TAG, "SSID: %s (Oculto: %s)", ap_ssid.c_str(), ap_hide ? "SI" : "NO");
         ESP_LOGI(TAG, "PASS: %s", ap_pass.c_str());
         ESP_LOGI(TAG, "Gateway IP: %s", WiFi.softAPIP().toString().c_str());
+    } else {
+        return ESP_FAIL;
     }
+    return ESP_OK;
 }
 
 bool NetworkManager::connectToOperationalWiFi() {
@@ -119,7 +123,7 @@ bool NetworkManager::connectToOperationalWiFi() {
     }
 }
 
-void NetworkManager::initNTP() {
+esp_err_t NetworkManager::initNTP() {
     Preferences prefs;
     prefs.begin("wifi", true); 
     String ntpServer = prefs.getString("ntp", "time.google.com");
@@ -127,9 +131,10 @@ void NetworkManager::initNTP() {
     prefs.end();
     ESP_LOGI(TAG, "SYS - NTP Server: %s | TZ: %s", ntpServer.c_str(), tz.c_str());
     configTzTime(tz.c_str(), ntpServer.c_str());
+    return ESP_OK;
 }
 
-void NetworkManager::setupWebServerOOBE(AsyncWebServer* server) {
+esp_err_t NetworkManager::setupWebServerOOBE(AsyncWebServer* server) {
     server->on("/api/oobe/status", HTTP_GET, [](AsyncWebServerRequest *request) {
         bool isClaimed = SecMgr.isProvisioned();
         auto response = request->beginResponse(200, "application/json", 
@@ -211,9 +216,10 @@ void NetworkManager::setupWebServerOOBE(AsyncWebServer* server) {
 
     server->begin();
     ESP_LOGI(TAG, "SYS - OOBE Web Server en escucha.");
+    return ESP_OK;
 }
 
-void NetworkManager::setupOTAEndpoints(AsyncWebServer* server) {
+esp_err_t NetworkManager::setupOTAEndpoints(AsyncWebServer* server) {
     server->on("/api/system/ota", HTTP_POST, 
         [](AsyncWebServerRequest *request) {
             if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
@@ -246,6 +252,7 @@ void NetworkManager::setupOTAEndpoints(AsyncWebServer* server) {
             if (final) Update.end(true);
         }
     );
+    return ESP_OK;
 }
 
 void NetworkManager::handleLoop() {

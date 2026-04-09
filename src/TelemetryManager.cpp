@@ -7,6 +7,7 @@
 #include "AiManager.h"
 #include "NotificationManager.h"
 #include "NetworkManager.h"
+#include <esp_check.h>
 
 static const char *TAG = "TelemetryMgr";
 
@@ -24,17 +25,17 @@ TelemetryManager::TelemetryManager() {
     sensorMutex = NULL;
 }
 
-void TelemetryManager::begin() {
+esp_err_t TelemetryManager::begin() {
     pinMode(PIN_CARGANDO, INPUT_PULLUP);
     pinMode(PIN_LLENO, INPUT_PULLUP);
 
     sensorMutex = xSemaphoreCreateMutex();
-    if (sensorMutex != NULL) {
-        xTaskCreatePinnedToCore(sensorTask, "SensorTask", 16384, this, 1, NULL, 1);
-        xTaskCreatePinnedToCore(dataLoggerTask, "DataLogger", 8192, this, 1, NULL, 0);
-    } else {
-        ESP_LOGE(TAG, "CRIT - Fallo creando Mutex de Sensores.");
-    }
+    ESP_RETURN_ON_FALSE(sensorMutex != NULL, ESP_ERR_NO_MEM, TAG, "CRIT - Fallo creando Mutex de Sensores.");
+    
+    xTaskCreatePinnedToCore(sensorTask, "SensorTask", 16384, this, 1, NULL, 1);
+    xTaskCreatePinnedToCore(dataLoggerTask, "DataLogger", 8192, this, 1, NULL, 0);
+    
+    return ESP_OK;
 }
 
 float TelemetryManager::getTemperature() {

@@ -6,11 +6,11 @@
 
 class NetworkManager {
 public:
-    void startSecureProvisioning();
+    esp_err_t startSecureProvisioning();
     bool connectToOperationalWiFi();
-    void initNTP();
-    void setupWebServerOOBE(AsyncWebServer* server);
-    void setupOTAEndpoints(AsyncWebServer* server);
+    esp_err_t initNTP();
+    esp_err_t setupWebServerOOBE(AsyncWebServer* server);
+    esp_err_t setupOTAEndpoints(AsyncWebServer* server);
     void handleLoop();
 };
 

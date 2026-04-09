@@ -5,6 +5,7 @@
 #include "tensorflow/lite/micro/all_ops_resolver.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/schema/schema_generated.h"
+#include <esp_check.h>
 
 static const char *TAG = "AiManager";
 
@@ -25,36 +26,36 @@ uint8_t* model_buffer = nullptr;
 
 AiManager AiMgr;
 
-void AiManager::begin() {
+esp_err_t AiManager::begin() {
     if (!LittleFS.exists("/www/anomaly_net.tflite")) {
         ESP_LOGW(TAG, "TinyML - Modelo inactivo. Esperando archivo .tflite via OTA.");
-        return;
+        return ESP_OK;
     }
 
     File file = LittleFS.open("/www/anomaly_net.tflite", "r");
-    if (!file) { ESP_LOGE(TAG, "TinyML - No se pudo abrir el modelo."); return; }
+    ESP_RETURN_ON_FALSE(file, ESP_FAIL, TAG, "TinyML - No se pudo abrir el modelo.");
     
     size_t size = file.size();
     uint32_t caps = psramFound() ? (MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) : MALLOC_CAP_INTERNAL;
     
     model_buffer = (uint8_t*) heap_caps_malloc(size, caps);
     if (!model_buffer) {
-        ESP_LOGE(TAG, "TinyML - Fallo al asignar %d bytes.", size);
-        file.close(); return;
+        file.close();
+        ESP_RETURN_ON_FALSE(false, ESP_ERR_NO_MEM, TAG, "TinyML - Fallo al asignar memoria.");
     }
     
     size_t bytesRead = file.read(model_buffer, size);
     file.close();
     
     if (bytesRead != size) {
-        ESP_LOGE(TAG, "TinyML - Lectura incompleta: %d/%d bytes. Liberando buffer...", bytesRead, size);
-        heap_caps_free(model_buffer); model_buffer = nullptr; return;
+        heap_caps_free(model_buffer); model_buffer = nullptr;
+        ESP_RETURN_ON_FALSE(false, ESP_FAIL, TAG, "TinyML - Lectura incompleta. Liberando buffer...");
     }
 
     ml_model = tflite::GetModel(model_buffer);
     if (!ml_model || ml_model->version() != TFLITE_SCHEMA_VERSION) {
-        ESP_LOGE(TAG, "TinyML - Modelo corrupto o versión incompatible.");
-        heap_caps_free(model_buffer); model_buffer = nullptr; return;
+        heap_caps_free(model_buffer); model_buffer = nullptr;
+        ESP_RETURN_ON_FALSE(false, ESP_FAIL, TAG, "TinyML - Modelo corrupto o versión incompatible.");
     }
 
     constexpr size_t minArena = 16 * 1024;
@@ -66,15 +67,13 @@ void AiManager::begin() {
     static tflite::MicroInterpreter static_interpreter(ml_model, resolver, tensor_arena, arenaSize, nullptr);
     ml_interpreter = &static_interpreter;
 
-    if (ml_interpreter->AllocateTensors() != kTfLiteOk) {
-        ESP_LOGE(TAG, "TinyML - Fallo AllocateTensors(). Arena: %d bytes.", arenaSize);
-        return;
-    }
+    ESP_RETURN_ON_FALSE(ml_interpreter->AllocateTensors() == kTfLiteOk, ESP_FAIL, TAG, "TinyML - Fallo AllocateTensors().");
 
     ml_input = ml_interpreter->input(0);
     ml_output = ml_interpreter->output(0);
     ml_ready = true;
     ESP_LOGI(TAG, "TinyML - Autoencoder Activado (%d bytes).", size);
+    return ESP_OK;
 }
 
 bool AiManager::isReady() const {
