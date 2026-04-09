@@ -1,3 +1,6 @@
+# Git Ignore for React_Esp32S3N16R8_LCD Project
+.gitignore
+
 # PlatformIO
 .pio/
 .pio
