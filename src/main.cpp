@@ -54,7 +54,7 @@ const unsigned long REBOOT_DELAY_MS = 3000;
 // --- VARIABLES COMPARTIDAS Y MUTEX (RTOS) ---
 SemaphoreHandle_t nvsMutex = NULL;
 SemaphoreHandle_t sensorMutex;
-SemaphoreHandle_t sessionMutex;  // Mutex para variables de sesión
+SemaphoreHandle_t sessionMutex;
 
 float currentTemp = 0.0;
 float currentHum = 0.0;
@@ -70,8 +70,8 @@ time_t sessionExpirationEpoch = 0;
 struct LoginAttempt {
     uint8_t count;
     uint32_t firstAttempt;
-    // String uaHash;
 };
+
 std::map<String, LoginAttempt> loginAttempts;  // Mapa IP -> intentos
 const uint8_t MAX_LOGIN_ATTEMPTS = 5;
 const uint32_t LOGIN_WINDOW_MS = 300000;  // 5 minutos
@@ -418,14 +418,14 @@ void sensorTask(void *parameter) {
     dht.begin();
     
     analogSetAttenuation(ADC_11db); 
-    analogReadResolution(12);  // ESP32-S3: resolución nativa
+    analogReadResolution(12);
 
     for(;;) {
         // =========================================================
         // FASE 2: LECTURA DHT22 OPTIMIZADA
         // =========================================================
         float h = dht.readHumidity();
-        float t = dht.readTemperature();  // Retorna valor cacheado de la misma lectura
+        float t = dht.readTemperature();
         
         if (!isnan(t)) t += tempOffset;
 
@@ -789,7 +789,7 @@ void setupWebServerAPI() {
             auto resp = request->beginResponse(200, "application/json", response);
             addSecurityHeaders(resp); request->send(resp);
             
-            loginAttempts.erase(clientIP); // Resetear rate limit
+            loginAttempts.erase(clientIP);
         } else {
             ESP_LOGW(TAG, "IAM - Login fallido para: %s desde %s", user.c_str(), clientIP.c_str());
             auto resp = request->beginResponse(401, "application/json", "{\"error\":\"Credenciales no válidas\"}");

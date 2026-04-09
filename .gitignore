@@ -1,5 +1,6 @@
 # Git Ignore for React_Esp32S3N16R8_LCD Project
 .gitignore
+.gemini/
 
 # PlatformIO
 .pio/
@@ -54,3 +55,5 @@ cutecom.log
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+GEMINI.md
