@@ -1,5 +1,6 @@
 #include "NetworkManager.h"
 #include <WiFi.h>
+#include <WiFiProv.h>
 #include <esp_wifi.h>
 #include <LittleFS.h>
 #include <AsyncJson.h>
@@ -11,8 +12,14 @@
 #include <time.h>
 #include <esp_log.h>
 #include <esp_check.h>
+#include <Wire.h>
+#include "SSD1306Wire.h"
+#include "my_qrcode.h"
 
 static const char *TAG = "EdgeSecOps";
+
+// Pantalla OLED I2C (SDA=8, SCL=9 son típicos para el DevKit I2C expandido o definidos por hardware)
+SSD1306Wire display(0x3c, 8, 9);
 
 extern bool isIpAllowed(AsyncWebServerRequest *request);
 extern void addSecurityHeaders(AsyncWebServerResponse *response);
@@ -50,6 +57,64 @@ esp_err_t NetworkManager::startSecureProvisioning() {
     } else {
         return ESP_FAIL;
     }
+    return ESP_OK;
+}
+
+void NetworkManager::displayQRCode(const char* payload) {
+    display.init();
+    display.flipScreenVertically();
+    display.clear();
+    
+    QRCode qrcode;
+    uint8_t qrcodeData[qrcode_getBufferSize(4)]; // QR versión 4 (33x33)
+    qrcode_initText(&qrcode, qrcodeData, 4, 0, payload);
+    
+    // Escalar el código QR al OLED (64 px de alto max, por lo que scale=1 nos da 33x33 px, dejando espacio para texto)
+    int scale = 1; 
+    int offsetX = (128 - (qrcode.size * scale)) / 2;
+    int offsetY = ((64 - (qrcode.size * scale)) / 2) + 5; // Bajar un poco para el titulo
+    
+    // Fondo blanco para el QR
+    display.setColor(WHITE);
+    display.fillRect(offsetX - 2, offsetY - 2, (qrcode.size * scale) + 4, (qrcode.size * scale) + 4);
+    
+    // Dibujar el QR en negro
+    display.setColor(BLACK);
+    for (uint8_t y = 0; y < qrcode.size; y++) {
+        for (uint8_t x = 0; x < qrcode.size; x++) {
+            if (qrcode_getModule(&qrcode, x, y)) {
+                display.fillRect(offsetX + x * scale, offsetY + y * scale, scale, scale);
+            }
+        }
+    }
+    
+    // Titulo superior
+    display.setColor(WHITE);
+    display.setFont(ArialMT_Plain_10);
+    display.drawString(offsetX - 10, 0, "Scan (ESP BLE Prov)");
+    display.display();
+}
+
+esp_err_t NetworkManager::startBLEProvisioningQR() {
+    ESP_LOGI(TAG, "Iniciando provisionamiento BLE unificado y mostrando QR...");
+    
+    // Iniciar I2C para OLED
+    Wire.begin(8, 9);
+    
+    uint8_t mac[6];
+    esp_wifi_get_mac(WIFI_IF_STA, mac);
+    char node_name[20];
+    sprintf(node_name, "PROV_%02X%02X%02X", mac[3], mac[4], mac[5]);
+    
+    const char *pop = "edge1234"; // Proof Of Possession code
+    
+    // Generar payload JSON compatible con la app ESP BLE Provisioning
+    String payload = "{\"ver\":\"v1\",\"name\":\"" + String(node_name) + "\",\"pop\":\"" + String(pop) + "\",\"transport\":\"ble\"}";
+    
+    displayQRCode(payload.c_str());
+    
+    WiFiProv.beginProvision(WIFI_PROV_SCHEME_BLE, WIFI_PROV_SCHEME_HANDLER_FREE_BTDM, WIFI_PROV_SECURITY_1, pop, node_name);
+    
     return ESP_OK;
 }
 

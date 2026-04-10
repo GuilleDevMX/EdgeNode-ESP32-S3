@@ -97,8 +97,9 @@ esp_err_t init_system() {
     ESP_RETURN_ON_ERROR(SecMgr.begin(), TAG, "Failed to init Security");
 
     if (!SecMgr.isProvisioned()) {
-        ESP_LOGI(TAG, "SYS - Nodo sin aprovisionar. Modo OOBE.");
+        ESP_LOGI(TAG, "SYS - Nodo sin aprovisionar. Modo OOBE y BLE Provisioning.");
         ESP_RETURN_ON_ERROR(NetMgr.startSecureProvisioning(), TAG, "Failed to start secure provisioning");
+        ESP_RETURN_ON_ERROR(NetMgr.startBLEProvisioningQR(), TAG, "Failed to start BLE provisioning");
         ESP_RETURN_ON_ERROR(ApiSrv.begin(true), TAG, "Failed to start API Server in OOBE mode");
         return ESP_OK;
     } else {
@@ -107,6 +108,7 @@ esp_err_t init_system() {
         if (!NetMgr.connectToOperationalWiFi()) {
             ESP_LOGE(TAG, "NET - Fallo WiFi. Modo rescate.");
             ESP_RETURN_ON_ERROR(NetMgr.startSecureProvisioning(), TAG, "Failed to start secure provisioning in rescue mode");
+            ESP_RETURN_ON_ERROR(NetMgr.startBLEProvisioningQR(), TAG, "Failed to start BLE provisioning");
             ESP_RETURN_ON_ERROR(ApiSrv.begin(true), TAG, "Failed to start API Server in rescue mode");      
             return ESP_OK;
         }

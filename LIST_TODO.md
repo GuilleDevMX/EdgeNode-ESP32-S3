@@ -17,5 +17,5 @@ Este documento detalla las APIs nativas de ESP-IDF que se implementarán progres
 - [ ] **ESP HTTPS OTA:** Reemplazar el mecanismo actual de actualización OTA por la API nativa de ESP-IDF que verifica firmas de certificados TLS y soporta *Rollback* automático si el nuevo firmware falla en el primer arranque.
 
 ## 🌐 Fase 4: Conectividad Avanzada
-- [ ] **Wi-Fi Easy Connect™ (DPP):** Añadir soporte para el aprovisionamiento de red mediante escaneo de código QR (Device Provisioning Protocol), eliminando la necesidad de conectarse manualmente a la red WiFi abierta del OOBE.
+- [x] **Wi-Fi Easy Connect™ (DPP) / Unified Provisioning:** Añadir soporte para el aprovisionamiento de red mediante escaneo de código QR en una pantalla OLED (GM009605V4-I2C-OLED), eliminando la necesidad de conectarse manualmente a la red WiFi abierta del OOBE.
 - [ ] **Thread / ESP-BLE-MESH (Opcional):** Explorar la comunicación entre múltiples nodos EdgeSecOps sin depender de un router WiFi central.
