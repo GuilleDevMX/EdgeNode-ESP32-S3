@@ -967,6 +967,26 @@ esp_err_t ApiServer::begin(bool oobeMode) {
 
 void ApiServer::handleWebSocket() {
     ws.cleanupClients();
+    
+    // Dynamic Frequency Scaling (Power Management)
+    static bool highFreq = true;
+    static unsigned long lastClientTime = millis();
+    
+    if (ws.count() > 0) {
+        lastClientTime = millis();
+        if (!highFreq) {
+            setCpuFrequencyMhz(240);
+            highFreq = true;
+            ESP_LOGI(TAG, "PWR - Escalando CPU a 240MHz (Conexiones WebSockets activas)");
+        }
+    } else {
+        // Bajar frecuencia solo si han pasado 10 segundos sin clientes
+        if (highFreq && (millis() - lastClientTime > 10000)) {
+            setCpuFrequencyMhz(80);
+            highFreq = false;
+            ESP_LOGI(TAG, "PWR - Escalando CPU a 80MHz (Modo reposo, sin clientes)");
+        }
+    }
 }
 
 void ApiServer::broadcastTelemetry(const String& jsonOutput) {

@@ -5,7 +5,7 @@ Este documento detalla las APIs nativas de ESP-IDF que se implementarán progres
 ## 🔋 Fase 1: Eficiencia Energética y Hardware
 - [x] **Analog to Digital Converter (ADC) Calibration Driver:** Reemplazar la calibración manual por la lectura de eFuses grabados de fábrica para obtener lecturas precisas del voltaje de la batería en milivoltios.
 - [ ] **Ultra Low Power (ULP) Coprocessor:** Programar el coprocesador ULP para realizar lecturas de sensores (DHT22/ADC) mientras el procesador principal (y el WiFi) están en Deep Sleep, despertando al sistema principal solo ante anomalías (TinyML) o umbrales críticos.
-- [ ] **Power Management (Dynamic Frequency Scaling):** Implementar el escalado dinámico de frecuencia de la CPU (ej. 240MHz -> 80MHz) basándose en la carga del sistema (conexiones activas al Web Server / WebSocket).
+- [x] **Power Management (Dynamic Frequency Scaling):** Implementar el escalado dinámico de frecuencia de la CPU (ej. 240MHz -> 80MHz) basándose en la carga del sistema (conexiones activas al Web Server / WebSocket).
 
 ## ⚙️ Fase 2: RTOS y Confiabilidad
 - [ ] **Watchdogs Avanzados (Task WDT & Interrupt WDT):** Configurar y suscribir explícitamente cada tarea de FreeRTOS (`SensorTask`, `DataLoggerTask`, Servidor Web) al Task Watchdog Timer. Asegurar que si ocurre un *deadlock* (ej. en un Mutex de LittleFS o NVS) el sistema se recupere automáticamente.
