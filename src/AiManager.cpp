@@ -84,6 +84,10 @@ float AiManager::getLastMSE() const {
     return last_mse;
 }
 
+int32_t AiManager::getLastInferenceTime() const {
+    return last_inference_time_us;
+}
+
 bool AiManager::detectAnomaly(float temperature, float humidity) {
     if (!ml_ready || isnan(temperature) || isnan(humidity)) {
         return false;
@@ -98,7 +102,11 @@ bool AiManager::detectAnomaly(float temperature, float humidity) {
     ml_input->data.f[0] = norm_t;
     ml_input->data.f[1] = norm_h;
 
+    int64_t start_time = esp_timer_get_time();
     if (ml_interpreter->Invoke() == kTfLiteOk) {
+        int64_t end_time = esp_timer_get_time();
+        last_inference_time_us = (int32_t)(end_time - start_time);
+
         float recon_t = ml_output->data.f[0];
         float recon_h = ml_output->data.f[1];
 

@@ -142,6 +142,9 @@ void loop() {
         doc["power_state"] = TelemetryMgr.getPowerState();
         doc["heap_free"] = ESP.getFreeHeap(); 
         doc["psram_free"] = ESP.getFreePsram(); 
+        doc["heap_max_block"] = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+        doc["psram_max_block"] = psramFound() ? heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) : 0;
+        doc["ml_inference_us"] = AiMgr.getLastInferenceTime();
         doc["uptime"] = millis() / 1000;
         
         String jsonOutput; 

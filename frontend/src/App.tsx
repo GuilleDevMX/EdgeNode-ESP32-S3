@@ -10,6 +10,9 @@ import Login from "./components/Login";
 interface Telemetry {
   heap_free: number;
   psram_free: number;
+  heap_max_block?: number;
+  psram_max_block?: number;
+  ml_inference_us?: number;
   uptime: number;
   temperature?: number;
   humidity?: number;
@@ -142,6 +145,7 @@ export default function App() {
           if (data.type === "telemetry") {
             setTelemetry({
               heap_free: data.heap_free, psram_free: data.psram_free, uptime: data.uptime,
+              heap_max_block: data.heap_max_block, psram_max_block: data.psram_max_block, ml_inference_us: data.ml_inference_us,
               temperature: data.temperature, humidity: data.humidity, battery_v: data.battery_v, power_state: data.power_state,
             });
 
@@ -680,20 +684,31 @@ export default function App() {
 
           {/* Estado del Sistema */}
           <div className="bg-panel-bg p-5 rounded-lg shadow-sm bg-navy-dark text-white flex flex-col justify-between">
-            <p className="text-gray-400 text-sm font-semibold">
-              Estado del Enlace WS
-            </p>
+            <div className="flex justify-between items-start">
+              <p className="text-gray-400 text-sm font-semibold">
+                Estado del Enlace WS
+              </p>
+              <span className="text-xs font-mono text-gray-500">Up: {telemetry?.uptime || 0}s</span>
+            </div>
             <p
-              className="text-lg font-bold text-teal-support truncate"
+              className="text-sm font-bold text-teal-support truncate mt-1"
               title={wsStatus}
             >
               {wsStatus}
             </p>
-            <div className="flex justify-between items-end mt-2 text-xs font-mono text-gray-400">
-              <span>Up: {telemetry?.uptime || 0}s</span>
-              <span>
-                Mem: {((telemetry?.heap_free || 0) / 1024).toFixed(0)}KB
-              </span>
+            
+            {/* INFERENCE AND FRAGMENTATION */}
+            <div className="border-t border-gray-700 mt-3 pt-3 grid grid-cols-2 gap-2 text-xs font-mono text-gray-400">
+                <div>
+                  <p>Inferencia ML:</p>
+                  <p className="text-teal-400 font-bold text-sm">{telemetry?.ml_inference_us ? (telemetry.ml_inference_us / 1000).toFixed(1) : '--'} ms</p>
+                </div>
+                <div>
+                  <p>Heap Free / Max:</p>
+                  <p className="text-teal-400 font-bold text-sm">
+                    {((telemetry?.heap_free || 0) / 1024).toFixed(0)} / {((telemetry?.heap_max_block || 0) / 1024).toFixed(0)} KB
+                  </p>
+                </div>
             </div>
           </div>
         </div>
