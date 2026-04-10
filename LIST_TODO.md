@@ -8,7 +8,7 @@ Este documento detalla las APIs nativas de ESP-IDF que se implementarán progres
 - [x] **Power Management (Dynamic Frequency Scaling):** Implementar el escalado dinámico de frecuencia de la CPU (ej. 240MHz -> 80MHz) basándose en la carga del sistema (conexiones activas al Web Server / WebSocket).
 
 ## ⚙️ Fase 2: RTOS y Confiabilidad
-- [ ] **Watchdogs Avanzados (Task WDT & Interrupt WDT):** Configurar y suscribir explícitamente cada tarea de FreeRTOS (`SensorTask`, `DataLoggerTask`, Servidor Web) al Task Watchdog Timer. Asegurar que si ocurre un *deadlock* (ej. en un Mutex de LittleFS o NVS) el sistema se recupere automáticamente.
+- [x] **Watchdogs Avanzados (Task WDT & Interrupt WDT):** Configurar y suscribir explícitamente cada tarea de FreeRTOS (`SensorTask`, `DataLoggerTask`, Servidor Web) al Task Watchdog Timer. Asegurar que si ocurre un *deadlock* (ej. en un Mutex de LittleFS o NVS) el sistema se recupere automáticamente.
 - [ ] **Performance Monitor / Heap Memory Debugging:** Implementar trazabilidad para medir el tiempo exacto de inferencia del modelo TensorFlow Lite y monitorear la fragmentación de la memoria Heap y PSRAM a lo largo del tiempo.
 
 ## 🛡️ Fase 3: Seguridad (Core EdgeSecOps)

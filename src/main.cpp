@@ -84,8 +84,10 @@ esp_err_t init_system() {
     // Validar que los mutex se crearon correctamente antes de lanzar tareas
     ESP_RETURN_ON_FALSE((sessionMutex != NULL && nvsMutex != NULL), ESP_ERR_NO_MEM, TAG, "CRIT - Fallo creando Mutex. RTOS inestable.");
 
-    esp_task_wdt_init(10, true);
-    esp_task_wdt_add(NULL);
+    // Configuración global del Task Watchdog Timer (TWDT)
+    // 30 segundos es seguro para operaciones largas como TLS Handshakes o rotación de LittleFS
+    esp_task_wdt_init(30, true);
+    esp_task_wdt_add(NULL); // Suscribir la tarea principal (loop)
 
     ESP_RETURN_ON_ERROR(TelemetryMgr.begin(), TAG, "Failed to init Telemetry");
 

@@ -9,6 +9,7 @@
 #include "NetworkManager.h"
 #include <esp_check.h>
 #include <esp_adc_cal.h>
+#include <esp_task_wdt.h>
 
 static const char *TAG = "TelemetryMgr";
 
@@ -83,9 +84,15 @@ int TelemetryManager::getBatteryPercentage(float voltage) {
 
 void TelemetryManager::dataLoggerTask(void *parameter) {
     TelemetryManager* mgr = (TelemetryManager*)parameter;
+    
+    // Suscribir la tarea de Data Logger al Task Watchdog Timer
+    esp_task_wdt_add(NULL);
+    
     vTaskDelay(pdMS_TO_TICKS(5000)); 
 
     for(;;) {
+        esp_task_wdt_reset(); // Alimentar al perro guardián
+        
         if (WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED) {
             float t = mgr->getTemperature();
             float h = mgr->getHumidity();
@@ -126,13 +133,21 @@ void TelemetryManager::dataLoggerTask(void *parameter) {
                 ESP_LOGE(TAG, "FS - Imposible abrir dataset.csv para escritura.");
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(60000));
+        
+        // En lugar de un delay largo que dispara el Watchdog, lo dividimos
+        for (int i = 0; i < 60; i++) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            esp_task_wdt_reset();
+        }
     }
 }
 
 void TelemetryManager::sensorTask(void *parameter) {
     TelemetryManager* mgr = (TelemetryManager*)parameter;
     Preferences prefs;
+    
+    // Suscribir la tarea de Sensores al Task Watchdog Timer
+    esp_task_wdt_add(NULL);
     
     // =========================================================
     // FASE 1: CONFIGURACIÓN INICIAL (Fuera del Bucle)
@@ -266,6 +281,15 @@ void TelemetryManager::sensorTask(void *parameter) {
             esp_deep_sleep_start();
         }
 
-        vTaskDelay(pdMS_TO_TICKS(pollRate));
+        // Delay de lectura (Poll rate). Partirlo para alimentar WDT si es > 5s
+        int chunks = pollRate / 1000;
+        int remainder = pollRate % 1000;
+        for (int i = 0; i < chunks; i++) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            esp_task_wdt_reset();
+        }
+        if (remainder > 0) {
+            vTaskDelay(pdMS_TO_TICKS(remainder));
+        }
     }
 }
