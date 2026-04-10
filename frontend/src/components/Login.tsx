@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { API_BASE_URL } from '../api/client';
+
+const API_BASE_URL = import.meta.env.DEV ? 'http://192.168.1.171' : '';
 
 interface LoginProps {
   onLoginSuccess: (token: string) => void;

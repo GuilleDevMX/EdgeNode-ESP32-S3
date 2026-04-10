@@ -8,6 +8,7 @@
 #include "NotificationManager.h"
 #include "NetworkManager.h"
 #include <esp_check.h>
+#include <esp_adc_cal.h>
 
 static const char *TAG = "TelemetryMgr";
 
@@ -143,6 +144,10 @@ void TelemetryManager::sensorTask(void *parameter) {
     float r1 = prefs.getFloat("r1", 50000.0);
     float r2 = prefs.getFloat("r2", 47000.0);
     float tempOffset = prefs.getFloat("t_off", -0.5);
+    float adcOffset = prefs.getFloat("adc_off", 0.0);
+    float adcMult = prefs.getFloat("adc_mult", 1.0);
+    int sleepMode = prefs.getInt("slp_mode", 0);
+    int sleepTime = prefs.getInt("slp_time", 60);
 
     int pollRate = prefs.getInt("poll", 5000);
     if (pollRate < 2000) pollRate = 2000;
@@ -151,8 +156,27 @@ void TelemetryManager::sensorTask(void *parameter) {
     DHT dht(dhtPin, dhtType);
     dht.begin();
     
-    analogSetAttenuation(ADC_11db); 
-    analogReadResolution(12);
+    // Configuracion de ADC Calibration (eFuses)
+    esp_adc_cal_characteristics_t adc_chars;
+    adc1_channel_t channel;
+    
+    // Mapeo simple de pin a canal (asumiendo ADC1 en ESP32-S3)
+    if (adcPin == 1) channel = ADC1_CHANNEL_0;
+    else if (adcPin == 2) channel = ADC1_CHANNEL_1;
+    else if (adcPin == 3) channel = ADC1_CHANNEL_2;
+    else if (adcPin == 4) channel = ADC1_CHANNEL_3;
+    else if (adcPin == 5) channel = ADC1_CHANNEL_4;
+    else if (adcPin == 6) channel = ADC1_CHANNEL_5;
+    else if (adcPin == 7) channel = ADC1_CHANNEL_6;
+    else if (adcPin == 8) channel = ADC1_CHANNEL_7;
+    else if (adcPin == 9) channel = ADC1_CHANNEL_8;
+    else channel = ADC1_CHANNEL_4; // default GPIO5
+
+    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_12, ADC_WIDTH_BIT_12, 0, &adc_chars);
+    
+    // Configurar canal via API nativa en lugar de Arduino
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(channel, ADC_ATTEN_DB_12);
 
     for(;;) {
         // =========================================================
@@ -164,20 +188,24 @@ void TelemetryManager::sensorTask(void *parameter) {
         if (!isnan(t)) t += tempOffset;
 
         // =========================================================
-        // FASE 3: SOBREMUESTREO DEL ADC (Oversampling)
+        // FASE 3: SOBREMUESTREO DEL ADC CON CALIBRACIÓN (eFuses)
         // =========================================================
-        analogRead(adcPin);
+        adc1_get_raw(channel); // Descartar primera lectura
         vTaskDelay(pdMS_TO_TICKS(2));
 
-        uint32_t adcSum = 0;
+        uint32_t rawSum = 0;
         int validSamples = 64;
         for(int i = 0; i < validSamples; i++) {
-            adcSum += analogRead(adcPin);
+            rawSum += adc1_get_raw(channel);
             vTaskDelay(pdMS_TO_TICKS(1)); 
         }
-        float adcAvg = (float)adcSum / validSamples;
+        uint32_t rawAvg = rawSum / validSamples;
         
-        float pinVoltage = (adcAvg / 4095.0) * 3.3; 
+        // Usar esp_adc_cal para convertir raw a milivoltios calibrados
+        uint32_t cal_mv = esp_adc_cal_raw_to_voltage(rawAvg, &adc_chars);
+        
+        // Convertir milivoltios a voltios finales con ajuste fino
+        float pinVoltage = (cal_mv / 1000.0) * adcMult + adcOffset; 
         float batVoltage = pinVoltage * ((r1 + r2) / r2);
 
         // =========================================================
@@ -225,6 +253,17 @@ void TelemetryManager::sensorTask(void *parameter) {
                 NotifMgr.sendEmail("🤖 ALERTA PREDICTIVA: Anomalía", aiMsg);
                 lastAiAlertTime = now;
             }
+        }
+
+        // =========================================================
+        // FASE 7: OPTIMIZACIÓN DE BATERÍA (SLEEP MODES)
+        // =========================================================
+        if (sleepMode == 1 && localPowerState == "Discharging") {
+            ESP_LOGW(TAG, "PWR - Modo Batería: Iniciando Deep Sleep por %d segundos.", sleepTime);
+            // Pequeño delay para permitir que el servidor WS envíe la telemetría antes de dormir
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            esp_sleep_enable_timer_wakeup(sleepTime * 1000000ULL);
+            esp_deep_sleep_start();
         }
 
         vTaskDelay(pdMS_TO_TICKS(pollRate));

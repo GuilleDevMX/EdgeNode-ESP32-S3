@@ -727,6 +727,8 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         doc["dht_pin"] = prefs.getInt("dht_pin", 4); doc["dht_type"] = prefs.getInt("dht_type", 22);
         doc["adc_pin"] = prefs.getInt("adc_pin", 5); doc["r1"] = prefs.getFloat("r1", 100000.0);
         doc["r2"] = prefs.getFloat("r2", 100000.0); doc["temp_offset"] = prefs.getFloat("t_off", -0.5);
+        doc["adc_offset"] = prefs.getFloat("adc_off", 0.0); doc["adc_mult"] = prefs.getFloat("adc_mult", 1.0);
+        doc["sleep_mode"] = prefs.getInt("slp_mode", 0); doc["sleep_time"] = prefs.getInt("slp_time", 60);
         doc["polling_rate"] = prefs.getInt("poll", 5000);
         prefs.end();
         String response; serializeJson(doc, response);
@@ -742,6 +744,10 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(data["r1"].is<float>()) prefs.putFloat("r1", data["r1"].as<float>());
         if(data["r2"].is<float>()) prefs.putFloat("r2", data["r2"].as<float>());
         if(data["temp_offset"].is<float>()) prefs.putFloat("t_off", data["temp_offset"].as<float>());
+        if(data["adc_offset"].is<float>()) prefs.putFloat("adc_off", data["adc_offset"].as<float>());
+        if(data["adc_mult"].is<float>()) prefs.putFloat("adc_mult", data["adc_mult"].as<float>());
+        if(data["sleep_mode"].is<int>()) prefs.putInt("slp_mode", data["sleep_mode"].as<int>());
+        if(data["sleep_time"].is<int>()) prefs.putInt("slp_time", data["sleep_time"].as<int>());
         if(data["polling_rate"].is<int>()) prefs.putInt("poll", data["polling_rate"].as<int>());
         prefs.end();
         ESP_LOGI(TAG, "SYS - Configuración de Sensores actualizada.");
@@ -847,6 +853,31 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         addSecurityHeaders(r); request->send(r);
     });
     server.addHandler(saveCloudHandler);
+
+    // --- ENDPOINT: POWER CONFIG ---
+    server.on("/api/config/power", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
+        if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
+        JsonDocument doc; prefs.begin("pwr", true);
+        doc["sleep_en"] = prefs.getBool("sleep_en", false);
+        doc["sleep_time_m"] = prefs.getInt("sleep_time_m", 15);
+        prefs.end();
+        String response; serializeJson(doc, response);
+        auto r = request->beginResponse(200, "application/json", response); addSecurityHeaders(r); request->send(r);
+    });
+
+    AsyncCallbackJsonWebHandler* pwrUpdateHandler = new AsyncCallbackJsonWebHandler("/api/config/power", [](AsyncWebServerRequest *request, JsonVariant &json) {
+        if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401, "application/json", "{\"error\":\"No autorizado.\"}"); addSecurityHeaders(r); request->send(r); return; }
+        JsonObject data = json.as<JsonObject>(); prefs.begin("pwr", false);
+        if(data["sleep_en"].is<bool>()) prefs.putBool("sleep_en", data["sleep_en"].as<bool>());
+        if(data["sleep_time_m"].is<int>()) prefs.putInt("sleep_time_m", data["sleep_time_m"].as<int>());
+        prefs.end();
+        ESP_LOGI(TAG, "SYS - Configuración de Energía actualizada.");
+        String logMsg = "Actualización de configuración de energía.";
+        writeAuditLog("INFO", "admin", logMsg);
+        auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\",\"message\":\"Configuración de energía guardada.\"}"); addSecurityHeaders(r); request->send(r);
+    });
+    server.addHandler(pwrUpdateHandler);
 
     // ========================================================================
     // 5. MANTENIMIENTO, ALMACENAMIENTO Y OTA

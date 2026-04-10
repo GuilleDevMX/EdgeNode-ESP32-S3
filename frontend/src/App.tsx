@@ -59,7 +59,7 @@ export default function App() {
   // 5. ESTADOS DE CONFIGURACIÓN (Formularios)
   // =====================================================================
   const [netConfig, setNetConfig] = useState({ ssid: "", pass: "", dhcp: true, ip: "", subnet: "", gateway: "", dns: "", ap_ssid: "", ap_pass: "", ap_hide: false, mdns: "edgenode", ntp: "time.google.com", tz: "CST6CDT,M4.1.0,M10.5.0" });
-  const [sensorConfig, setSensorConfig] = useState({ dht_pin: 4, dht_type: 22, adc_pin: 5, r1: 100000, r2: 100000, temp_offset: -0.5, polling_rate: 5000 });
+  const [sensorConfig, setSensorConfig] = useState({ dht_pin: 4, dht_type: 22, adc_pin: 5, r1: 100000, r2: 100000, temp_offset: -0.5, adc_offset: 0.0, adc_mult: 1.0, sleep_mode: 0, sleep_time: 60, polling_rate: 5000 });
   const [secConfig, setSecConfig] = useState({ current_pass: "", new_pass: "", confirm_pass: "", jwt_exp: "15", allowlist_enabled: false, allowlist: "" });
   const [smtpConfig, setSmtpConfig] = useState({ enabled: false, host: "smtp.gmail.com", port: 465, user: "", pass: "", dest: "", t_max: 35.0, t_min: 10.0, h_max: 60.0, h_min: 20.0, b_min: 3.2, cooldown: 60, alert_temp: true, alert_hum: true, alert_sec: true });
   const [waConfig, setWaConfig] = useState({ enabled: false, phone: "", api_key: "" });
@@ -2137,9 +2137,37 @@ export default function App() {
                         }
                         className="w-full md:w-1/3 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-support focus:outline-none font-mono text-sm"
                       />
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-gray-500 mt-1 mb-4">
                         Compensación por calor emitido por la placa ESP32.
                       </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-600 mb-1">ADC Offset (V)</label>
+                          <input type="number" step="0.01" value={sensorConfig.adc_offset || 0.0} onChange={(e) => setSensorConfig({ ...sensorConfig, adc_offset: parseFloat(e.target.value) })} className="w-full p-2 border rounded font-mono text-sm" />
+                          <p className="text-xs text-gray-500">Ajuste fino de voltaje.</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-600 mb-1">ADC Multiplicador</label>
+                          <input type="number" step="0.01" value={sensorConfig.adc_mult || 1.0} onChange={(e) => setSensorConfig({ ...sensorConfig, adc_mult: parseFloat(e.target.value) })} className="w-full p-2 border rounded font-mono text-sm" />
+                          <p className="text-xs text-gray-500">Factor de corrección.</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t mt-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-600 mb-1">Sleep Mode (Optimización Batería)</label>
+                          <select value={sensorConfig.sleep_mode || 0} onChange={(e) => setSensorConfig({ ...sensorConfig, sleep_mode: parseInt(e.target.value) })} className="w-full p-2 border rounded font-mono text-sm">
+                            <option value={0}>Siempre Encendido</option>
+                            <option value={1}>Deep Sleep</option>
+                          </select>
+                          <p className="text-[10px] text-red-500 font-bold mt-1">Deep Sleep apaga el Servidor Web y REST API.</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-600 mb-1">Intervalo Deep Sleep (s)</label>
+                          <input type="number" value={sensorConfig.sleep_time || 60} onChange={(e) => setSensorConfig({ ...sensorConfig, sleep_time: parseInt(e.target.value) })} className="w-full p-2 border rounded font-mono text-sm" />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
