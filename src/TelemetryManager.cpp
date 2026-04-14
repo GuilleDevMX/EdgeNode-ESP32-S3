@@ -156,6 +156,7 @@ void TelemetryManager::sensorTask(void *parameter) {
     int dhtPin = prefs.getInt("dht_pin", 4);
     int dhtType = prefs.getInt("dht_type", 22); 
     int adcPin = prefs.getInt("adc_pin", 5);
+    int adcGndPin = prefs.getInt("adc_gnd_pin", -1);
     float r1 = prefs.getFloat("r1", 50000.0);
     float r2 = prefs.getFloat("r2", 47000.0);
     float tempOffset = prefs.getFloat("t_off", -0.5);
@@ -167,6 +168,10 @@ void TelemetryManager::sensorTask(void *parameter) {
     int pollRate = prefs.getInt("poll", 5000);
     if (pollRate < 2000) pollRate = 2000;
     prefs.end();
+
+    if (adcGndPin >= 0) {
+        pinMode(adcGndPin, INPUT); // Default a alta impedancia para no consumir energía
+    }
 
     DHT dht(dhtPin, dhtType);
     dht.begin();
@@ -205,6 +210,12 @@ void TelemetryManager::sensorTask(void *parameter) {
         // =========================================================
         // FASE 3: SOBREMUESTREO DEL ADC CON CALIBRACIÓN (eFuses)
         // =========================================================
+        if (adcGndPin >= 0) {
+            pinMode(adcGndPin, OUTPUT);
+            digitalWrite(adcGndPin, LOW);
+            vTaskDelay(pdMS_TO_TICKS(10)); // Tiempo para que el condensador bypass se estabilice
+        }
+
         adc1_get_raw(channel); // Descartar primera lectura
         vTaskDelay(pdMS_TO_TICKS(2));
 
@@ -214,6 +225,11 @@ void TelemetryManager::sensorTask(void *parameter) {
             rawSum += adc1_get_raw(channel);
             vTaskDelay(pdMS_TO_TICKS(1)); 
         }
+        
+        if (adcGndPin >= 0) {
+            pinMode(adcGndPin, INPUT); // Regresar a alta impedancia
+        }
+
         uint32_t rawAvg = rawSum / validSamples;
         
         // Usar esp_adc_cal para convertir raw a milivoltios calibrados

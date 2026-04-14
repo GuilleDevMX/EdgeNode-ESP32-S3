@@ -131,18 +131,53 @@ export default function App() {
   // 8. COMUNICACIÓN EN TIEMPO REAL (WebSocket)
   // =====================================================================
   useEffect(() => {
-    if (isProvisioned === true && authToken) {
+    let ws: WebSocket;
+    let pingInterval: any;
+    let reconnectTimeout: any;
+    let isIntentionalClose = false;
+
+    const connectWs = () => {
+      if (isProvisioned !== true || !authToken) return;
       const wsUrl = import.meta.env.DEV ? "ws://192.168.1.171/ws" : `ws://${window.location.hostname}/ws`;
-      const ws = new WebSocket(wsUrl);
+      ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
-      ws.onopen = () => ws.send(JSON.stringify({ type: "auth", token: authToken }));
-      ws.onclose = () => setWsStatus("Conexión Cerrada");
-      ws.onerror = () => setWsStatus("Error");
+      ws.onopen = () => {
+        setWsStatus("Conectando (Verificando JWT)...");
+        ws.send(JSON.stringify({ type: "auth", token: authToken }));
+        
+        // PING / HEARTBEAT para evitar desconexiones por inactividad
+        pingInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "ping" }));
+          }
+        }, 20000);
+      };
+
+      ws.onclose = () => {
+        clearInterval(pingInterval);
+        if (!isIntentionalClose) {
+          setWsStatus("Conexión Perdida. Reconectando...");
+          reconnectTimeout = setTimeout(connectWs, 3000);
+        } else {
+          setWsStatus("Desconectado.");
+        }
+      };
+
+      ws.onerror = () => setWsStatus("Fallo de Enlace");
+
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === "telemetry") {
+          
+          if (data.type === "error" && data.message === "invalid_token") {
+            isIntentionalClose = true; // Prevenir ciclo de reconexión infinito
+            ws.close();
+            toast.error("🔒 Token JWT expirado o revocado. Ingrese nuevamente.", { id: 'session_ws_expired' });
+            sessionStorage.removeItem("edge_auth_token");
+            setAuthToken(null);
+            setTelemetry(null);
+          } else if (data.type === "telemetry") {
             setTelemetry({
               heap_free: data.heap_free, psram_free: data.psram_free, uptime: data.uptime,
               heap_max_block: data.heap_max_block, psram_max_block: data.psram_max_block, ml_inference_us: data.ml_inference_us,
@@ -164,8 +199,17 @@ export default function App() {
           console.error("[SecOps] Fallo de parseo en payload:", e);
         }
       };
-      return () => { if (ws.readyState === 1) ws.close(); };
-    }
+    };
+
+    connectWs();
+
+    // Limpieza del useEffect cuando el componente se desmonta o authToken expira/cambia
+    return () => {
+      isIntentionalClose = true;
+      clearInterval(pingInterval);
+      clearTimeout(reconnectTimeout);
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+    };
   }, [isProvisioned, authToken]);
 
 
@@ -331,20 +375,24 @@ export default function App() {
     } catch (error: any) { toast.error(`[SecOps] Bloqueo de descarga: ${error.message}`); }
   };
 
-  const handleOtaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !authToken) return;
-    if (!file.name.endsWith(".bin") && !file.name.endsWith(".tflite")) return toast.error("[SecOps] Solo .bin o .tflite.");
+  const [otaUrl, setOtaUrl] = useState("");
 
-    const formData = new FormData(); formData.append("firmware", file);
+  const handleOtaUpload = async () => {
+    if (!otaUrl || !authToken) return toast.error("Ingrese una URL válida.");
+    if (!otaUrl.startsWith("https://")) return toast.error("La URL debe ser HTTPS segura.");
+
     try {
-      setWsStatus("Flasheando Firmware (No desconectar)...");
+      setWsStatus("Descargando y Flasheando Firmware...");
       const apiUrl = import.meta.env.DEV ? "http://192.168.1.171/api/system/ota" : "/api/system/ota";
-      const response = await apiFetch(apiUrl, { method: "POST", headers: { Authorization: `Bearer ${authToken}` }, body: formData });
+      const response = await apiFetch(apiUrl, { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` }, 
+        body: JSON.stringify({ url: otaUrl }) 
+      });
       if (!response.ok) throw new Error("Error fatal durante el flasheo.");
       
-      toast.success("Actualización Exitosa. El panel perderá conexión momentáneamente.");
-      handleLogout();
+      toast.success("Actualización iniciada. El dispositivo se reiniciará automáticamente al terminar.");
+      setOtaUrl("");
     } catch (error: any) {
       toast.error(`[SecOps] Abortado: ${error.message}`);
       setWsStatus("Conectado");
@@ -2826,19 +2874,21 @@ export default function App() {
                   <p className="text-xs text-gray-500 mt-1">
                     Soporta binarios de PlatformIO (firmware.bin, littlefs.bin)
                   </p>
-                  <input
-                    type="file"
-                    accept=".bin,.tflite"
-                    className="hidden"
-                    id="ota-upload"
-                    onChange={handleOtaUpload}
-                  />
-                  <label
-                    htmlFor="ota-upload"
-                    className="mt-4 inline-block px-4 py-2 bg-navy-dark text-white rounded font-bold cursor-pointer hover:bg-gray-800 shadow"
-                  >
-                    Seleccionar Archivo
-                  </label>
+                  <div className="mt-4 flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      value={otaUrl}
+                      onChange={(e) => setOtaUrl(e.target.value)}
+                      className="flex-1 p-2 border border-gray-300 rounded font-mono text-sm outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                    <button
+                      onClick={handleOtaUpload}
+                      className="px-4 py-2 bg-navy-dark text-white rounded font-bold hover:bg-gray-800 shadow whitespace-nowrap"
+                    >
+                      Flashear
+                    </button>
+                  </div>
                 </div>
               </section>
 

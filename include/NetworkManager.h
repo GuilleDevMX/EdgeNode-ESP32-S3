@@ -13,8 +13,6 @@ public:
     esp_err_t setupWebServerOOBE(AsyncWebServer* server);
     esp_err_t setupOTAEndpoints(AsyncWebServer* server);
     void handleLoop();
-
-    static void displayQRCode(const char* payload);
 };
 
 extern NetworkManager NetMgr;

@@ -23,10 +23,13 @@
 #include <esp_system.h>
 #include <esp_task_wdt.h>
 #include "AiManager.h"
+#include "DisplayManager.h"
 #include <map>
 #include <esp_check.h>
 
 // --- ETIQUETA GLOBAL PARA LOS LOGS ---
+#include <esp_ota_ops.h>
+
 static const char *TAG = "EdgeSecOps";
 
 // --- PROTOTIPOS DE FUNCIONES ---
@@ -90,6 +93,7 @@ esp_err_t init_system() {
     esp_task_wdt_add(NULL); // Suscribir la tarea principal (loop)
 
     ESP_RETURN_ON_ERROR(TelemetryMgr.begin(), TAG, "Failed to init Telemetry");
+    ESP_RETURN_ON_ERROR(DisplayMgr.begin(), TAG, "Failed to init Display");
 
     // 4. Inicialización de Módulos Externos
     ESP_RETURN_ON_ERROR(NotifMgr.begin(), TAG, "Failed to init Notifications"); // Inicializar el gestor de correos
@@ -116,6 +120,11 @@ esp_err_t init_system() {
         ESP_LOGI(TAG, "NET - Conexión exitosa. Levantando API.");
         ESP_RETURN_ON_ERROR(ApiSrv.begin(false), TAG, "Failed to start API Server");
     }
+    if (WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED) {
+        ESP_LOGI(TAG, "SYS - Red operativa lista. Cancelando Rollback si estaba pendiente.");
+        esp_ota_mark_app_valid_cancel_rollback();
+    }
+
     return ESP_OK;
 }
 

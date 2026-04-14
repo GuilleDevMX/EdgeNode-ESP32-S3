@@ -1,0 +1,34 @@
+[   430][I][esp32-hal-psram.c:96] psramInit(): PSRAM enabled␍␊
+ESP-ROM:esp32s3-20210327␍␊
+Build:Mar 27 2021␍␊
+rst:0x15 (USB_UART_CHIP_RESET),boot:0x8 (SPI_FAST_FLASH_BOOT)␍␊
+Saved PC:0x4219612a␍␊
+SPIWP:0xee␍␊
+mode:DIO, clock div:1␍␊
+load:0x3fce3808,len:0x4bc␍␊
+load:0x403c9700,len:0xbd8␍␊
+load:0x403cc700,len:0x2a0c␍␊
+entry 0x403c98d0␍␊
+[   430][I][esp32-hal-psram.c:96] psramInit(): PSRAM enabled␍␊
+[   483][E][vfs_api.cpp:105] open(): /littlefs/www/anomaly_net.tflite does not exist, no permits for creation␍␊
+[   493][W][AiManager.cpp:31] begin(): [AiManager] TinyML - Modelo inactivo. Esperando archivo .tflite via OTA.␍␊
+[   503][I][NotificationManager.cpp:31] begin(): [NOTIF_MGR] NotificationManager inicializado␍␊
+[   514][I][main.cpp:108] init_system(): [EdgeSecOps] SYS - Perfil encontrado. Iniciando red.␍␊
+[   597][I][NetworkManager.cpp:153] connectToOperationalWiFi(): [EdgeSecOps] NET - Conectando a red operativa 'INFINITUM0516'...␍␊
+[  3108][I][NetworkManager.cpp:164] connectToOperationalWiFi(): [EdgeSecOps] NET - Conectado exitosamente. IP: 192.168.1.196␍␊
+[  3121][I][NetworkManager.cpp:198] initNTP(): [EdgeSecOps] SYS - NTP Server: time.google.com | TZ: CST6CDT,M4.1.0,M10.5.0␍␊
+[  3132][I][NetworkManager.cpp:168] connectToOperationalWiFi(): [EdgeSecOps] SYS - Esperando sincron<0xc3><0xad>a horaria NTP...␍␊
+[  3142][I][NetworkManager.cpp:176] connectToOperationalWiFi(): [EdgeSecOps] SYS - Reloj interno calibrado exitosamente con NTP.␍␊
+[  3155][I][NetworkManager.cpp:182] connectToOperationalWiFi(): [EdgeSecOps] NET - mDNS Responder activo. Accesible en: http://edgenode.local␍␊
+[  3168][I][main.cpp:118] init_system(): [EdgeSecOps] NET - Conexi<0xc3><0xb3>n exitosa. Levantando API.␍␊
+[  3178][I][ApiServer.cpp:965] begin(): [ApiServer] SYS - API Web Server operativo. RBAC Zero-Trust + Headers de Seguridad Activos.␍␊
+[  3190][I][main.cpp:122] init_system(): [EdgeSecOps] SYS - Red operativa lista. Cancelando Rollback si estaba pendiente.␍␊
+[ 22120][W][ApiServer.cpp:179] isAuthorized(): [ApiServer] IAM - Acceso denegado. Rol actual: , Requerido: operator␍␊
+[ 22131][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 22157][E][vfs_api.cpp:105] open(): /littlefs/www/favicon.svg.gz does not exist, no permits for creation␍␊
+[ 22251][I][ApiServer.cpp:194] onWsEvent(): [ApiServer] WS - Cliente Conectado. ID: 1.␍␊
+[ 22279][I][ApiServer.cpp:229] onWsEvent(): [ApiServer] WS - Cliente Desconectado. ID: 1.␍␊
+[ 28650][I][SecurityManager.cpp:231] authenticateUser(): [SecMgr] Auth OK: admin␍␊
+[ 28659][I][ApiServer.cpp:346] operator()(): [ApiServer] IAM - Auth OK. User: admin | Rol: admin␍␊
+[ 29577][I][ApiServer.cpp:194] onWsEvent(): [ApiServer] WS - Cliente Conectado. ID: 2.␍␊
+[ 75146][I][ApiServer.cpp:229] onWsEvent(): [ApiServer] WS - Cliente Desconectado. ID: 2.␍␊

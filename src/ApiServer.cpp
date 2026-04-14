@@ -217,6 +217,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                         client->text("{\"type\":\"status\",\"message\":\"Autenticación aceptada\"}");
                     } else {
                         ESP_LOGW(TAG, "WS - Token inválido. Cerrando conexión ID: %u.", client->id());
+                        client->text("{\"type\":\"error\",\"message\":\"invalid_token\"}");
                         client->close();
                     }
                 } else {
@@ -725,7 +726,8 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isAuthorized(request, "operator")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
         JsonDocument doc; prefs.begin("sen", true);
         doc["dht_pin"] = prefs.getInt("dht_pin", 4); doc["dht_type"] = prefs.getInt("dht_type", 22);
-        doc["adc_pin"] = prefs.getInt("adc_pin", 5); doc["r1"] = prefs.getFloat("r1", 100000.0);
+        doc["adc_pin"] = prefs.getInt("adc_pin", 5); doc["adc_gnd_pin"] = prefs.getInt("adc_gnd_pin", -1);
+        doc["r1"] = prefs.getFloat("r1", 100000.0);
         doc["r2"] = prefs.getFloat("r2", 100000.0); doc["temp_offset"] = prefs.getFloat("t_off", -0.5);
         doc["adc_offset"] = prefs.getFloat("adc_off", 0.0); doc["adc_mult"] = prefs.getFloat("adc_mult", 1.0);
         doc["sleep_mode"] = prefs.getInt("slp_mode", 0); doc["sleep_time"] = prefs.getInt("slp_time", 60);
@@ -741,6 +743,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(data["dht_pin"].is<int>()) prefs.putInt("dht_pin", data["dht_pin"].as<int>());
         if(data["dht_type"].is<int>()) prefs.putInt("dht_type", data["dht_type"].as<int>());
         if(data["adc_pin"].is<int>()) prefs.putInt("adc_pin", data["adc_pin"].as<int>());
+        if(data["adc_gnd_pin"].is<int>()) prefs.putInt("adc_gnd_pin", data["adc_gnd_pin"].as<int>());
         if(data["r1"].is<float>()) prefs.putFloat("r1", data["r1"].as<float>());
         if(data["r2"].is<float>()) prefs.putFloat("r2", data["r2"].as<float>());
         if(data["temp_offset"].is<float>()) prefs.putFloat("t_off", data["temp_offset"].as<float>());
@@ -967,26 +970,6 @@ esp_err_t ApiServer::begin(bool oobeMode) {
 
 void ApiServer::handleWebSocket() {
     ws.cleanupClients();
-    
-    // Dynamic Frequency Scaling (Power Management)
-    static bool highFreq = true;
-    static unsigned long lastClientTime = millis();
-    
-    if (ws.count() > 0) {
-        lastClientTime = millis();
-        if (!highFreq) {
-            setCpuFrequencyMhz(240);
-            highFreq = true;
-            ESP_LOGI(TAG, "PWR - Escalando CPU a 240MHz (Conexiones WebSockets activas)");
-        }
-    } else {
-        // Bajar frecuencia solo si han pasado 10 segundos sin clientes
-        if (highFreq && (millis() - lastClientTime > 10000)) {
-            setCpuFrequencyMhz(80);
-            highFreq = false;
-            ESP_LOGI(TAG, "PWR - Escalando CPU a 80MHz (Modo reposo, sin clientes)");
-        }
-    }
 }
 
 void ApiServer::broadcastTelemetry(const String& jsonOutput) {

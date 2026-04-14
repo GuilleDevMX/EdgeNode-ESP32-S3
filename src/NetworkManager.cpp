@@ -1,4 +1,5 @@
 #include "NetworkManager.h"
+#include "OtaManager.h"
 #include <WiFi.h>
 #include <WiFiProv.h>
 #include <esp_wifi.h>
@@ -12,14 +13,9 @@
 #include <time.h>
 #include <esp_log.h>
 #include <esp_check.h>
-#include <Wire.h>
-#include "SSD1306Wire.h"
-#include "my_qrcode.h"
+#include "DisplayManager.h"
 
 static const char *TAG = "EdgeSecOps";
-
-// Pantalla OLED I2C (SDA=8, SCL=9 son típicos para el DevKit I2C expandido o definidos por hardware)
-SSD1306Wire display(0x3c, 8, 9);
 
 extern bool isIpAllowed(AsyncWebServerRequest *request);
 extern void addSecurityHeaders(AsyncWebServerResponse *response);
@@ -60,46 +56,8 @@ esp_err_t NetworkManager::startSecureProvisioning() {
     return ESP_OK;
 }
 
-void NetworkManager::displayQRCode(const char* payload) {
-    display.init();
-    display.flipScreenVertically();
-    display.clear();
-    
-    QRCode qrcode;
-    uint8_t qrcodeData[qrcode_getBufferSize(4)]; // QR versión 4 (33x33)
-    qrcode_initText(&qrcode, qrcodeData, 4, 0, payload);
-    
-    // Escalar el código QR al OLED (64 px de alto max, por lo que scale=1 nos da 33x33 px, dejando espacio para texto)
-    int scale = 1; 
-    int offsetX = (128 - (qrcode.size * scale)) / 2;
-    int offsetY = ((64 - (qrcode.size * scale)) / 2) + 5; // Bajar un poco para el titulo
-    
-    // Fondo blanco para el QR
-    display.setColor(WHITE);
-    display.fillRect(offsetX - 2, offsetY - 2, (qrcode.size * scale) + 4, (qrcode.size * scale) + 4);
-    
-    // Dibujar el QR en negro
-    display.setColor(BLACK);
-    for (uint8_t y = 0; y < qrcode.size; y++) {
-        for (uint8_t x = 0; x < qrcode.size; x++) {
-            if (qrcode_getModule(&qrcode, x, y)) {
-                display.fillRect(offsetX + x * scale, offsetY + y * scale, scale, scale);
-            }
-        }
-    }
-    
-    // Titulo superior
-    display.setColor(WHITE);
-    display.setFont(ArialMT_Plain_10);
-    display.drawString(offsetX - 10, 0, "Scan (ESP BLE Prov)");
-    display.display();
-}
-
 esp_err_t NetworkManager::startBLEProvisioningQR() {
     ESP_LOGI(TAG, "Iniciando provisionamiento BLE unificado y mostrando QR...");
-    
-    // Iniciar I2C para OLED
-    Wire.begin(8, 9);
     
     uint8_t mac[6];
     esp_wifi_get_mac(WIFI_IF_STA, mac);
@@ -111,7 +69,7 @@ esp_err_t NetworkManager::startBLEProvisioningQR() {
     // Generar payload JSON compatible con la app ESP BLE Provisioning
     String payload = "{\"ver\":\"v1\",\"name\":\"" + String(node_name) + "\",\"pop\":\"" + String(pop) + "\",\"transport\":\"ble\"}";
     
-    displayQRCode(payload.c_str());
+    DisplayMgr.showQR(payload.c_str());
     
     WiFiProv.beginProvision(WIFI_PROV_SCHEME_BLE, WIFI_PROV_SCHEME_HANDLER_FREE_BTDM, WIFI_PROV_SECURITY_1, pop, node_name);
     
@@ -285,38 +243,26 @@ esp_err_t NetworkManager::setupWebServerOOBE(AsyncWebServer* server) {
 }
 
 esp_err_t NetworkManager::setupOTAEndpoints(AsyncWebServer* server) {
-    server->on("/api/system/ota", HTTP_POST, 
-        [](AsyncWebServerRequest *request) {
-            if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
-            String authToken = request->header("Authorization");
-            if(!authToken.startsWith("Bearer ") || !isAuthorized(request, "admin")) { 
-                auto r = request->beginResponse(401, "application/json", "{\"error\":\"No autorizado\"}"); addSecurityHeaders(r); request->send(r); return; 
-            }
-            if (!Update.hasError()) {
-                ESP_LOGI(TAG, "OTA - Transferencia completada.");
-                String logMsg = "Actualización OTA realizada con éxito.";
-                writeAuditLog("INFO", "admin", logMsg);
-                auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}");
-                r->addHeader("Connection", "close"); addSecurityHeaders(r); request->send(r);
-                ESP_LOGI(TAG, "OTA - Transferencia completada. Reiniciando.");
-                pendingReboot = true; rebootRequestTime = millis();
-            } else {
-                ESP_LOGE(TAG, "OTA - Fallo en transferencia.");
-                auto r = request->beginResponse(500, "application/json", "{\"error\":\"OTA Failed\"}"); addSecurityHeaders(r); request->send(r);
-            }
-        },
-        [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-            String authToken = request->header("Authorization");
-            if(!authToken.startsWith("Bearer ") || !isAuthorized(request, "admin")) return;
-            if (!index) {
-                int command = (filename.indexOf("littlefs") > -1 || filename.indexOf("spiffs") > -1) ? U_SPIFFS : U_FLASH;
-                ESP_LOGI(TAG, "OTA - Iniciando: %s", filename.c_str());
-                Update.begin(UPDATE_SIZE_UNKNOWN, command);
-            }
-            Update.write(data, len);
-            if (final) Update.end(true);
+    AsyncCallbackJsonWebHandler* otaHandler = new AsyncCallbackJsonWebHandler("/api/system/ota", [](AsyncWebServerRequest *request, JsonVariant &json) {
+        if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
+        String authToken = request->header("Authorization");
+        if(!authToken.startsWith("Bearer ") || !isAuthorized(request, "admin")) { 
+            auto r = request->beginResponse(401, "application/json", "{\"error\":\"No autorizado\"}"); addSecurityHeaders(r); request->send(r); return; 
         }
-    );
+        
+        JsonObject data = json.as<JsonObject>();
+        if (!data["url"].is<String>()) {
+            auto r = request->beginResponse(400, "application/json", "{\"error\":\"Missing URL\"}"); addSecurityHeaders(r); request->send(r); return; 
+        }
+        String otaUrl = data["url"].as<String>();
+        
+        OtaMgr.begin(otaUrl.c_str());
+        
+        writeAuditLog("INFO", "admin", "Descarga de firmware iniciada via HTTPS.");
+        auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\", \"message\":\"OTA pull started\"}"); 
+        addSecurityHeaders(r); request->send(r);
+    });
+    server->addHandler(otaHandler);
     return ESP_OK;
 }
 
@@ -328,6 +274,20 @@ void NetworkManager::handleLoop() {
             ESP_LOGW(TAG, "NET - Enlace WiFi caído (Router reiniciado/Lejos). Forzando reconexión...");
             WiFi.disconnect();
             WiFi.reconnect();
+        }
+    }
+
+    // Monitor de HTTPS OTA via OtaManager
+    static OtaStatus lastOtaStatus = OTA_IDLE;
+    OtaStatus currentOtaStatus = OtaMgr.getStatus();
+    if (currentOtaStatus != lastOtaStatus) {
+        lastOtaStatus = currentOtaStatus;
+        if (currentOtaStatus == OTA_SUCCESS) {
+            ESP_LOGI(TAG, "OTA - Descarga completa. Reiniciando...");
+            pendingReboot = true;
+            rebootRequestTime = millis();
+        } else if (currentOtaStatus == OTA_FAILED) {
+            ESP_LOGE(TAG, "OTA - La actualización falló o hubo un error de red.");
         }
     }
 }
