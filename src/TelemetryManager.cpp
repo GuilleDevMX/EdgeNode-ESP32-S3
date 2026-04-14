@@ -82,6 +82,43 @@ int TelemetryManager::getBatteryPercentage(float voltage) {
     return (int)(((voltage - 3.2) / (4.2 - 3.2)) * 100.0);
 }
 
+void TelemetryManager::enforceDataRetention() {
+    Preferences prefs;
+    prefs.begin("pwr", true); // Reusamos el namespace pwr o creamos uno nuevo
+    int retentionDays = prefs.getInt("retention_d", 30); // Default a 1 mes (30 días)
+    prefs.end();
+
+    if (!LittleFS.exists("/www/data")) return;
+
+    File dir = LittleFS.open("/www/data");
+    if (!dir || !dir.isDirectory()) return;
+
+    std::vector<String> files;
+    File file = dir.openNextFile();
+    while (file) {
+        String fileName = file.name();
+        if (fileName.endsWith(".csv")) {
+            files.push_back(fileName);
+        }
+        file.close();
+        file = dir.openNextFile();
+    }
+    dir.close();
+
+    if (files.size() > retentionDays) {
+        // Ordenar cronológicamente (al ser YYYY-MM-DD.csv, el orden alfabético sirve)
+        std::sort(files.begin(), files.end());
+        
+        // Eliminar los más antiguos
+        int numToDelete = files.size() - retentionDays;
+        for (int i = 0; i < numToDelete; i++) {
+            String fullPath = "/www/data/" + files[i];
+            LittleFS.remove(fullPath);
+            ESP_LOGW(TAG, "FS - Limpieza histórica: Archivo %s eliminado.", files[i].c_str());
+        }
+    }
+}
+
 void TelemetryManager::dataLoggerTask(void *parameter) {
     TelemetryManager* mgr = (TelemetryManager*)parameter;
     
@@ -90,6 +127,14 @@ void TelemetryManager::dataLoggerTask(void *parameter) {
     
     vTaskDelay(pdMS_TO_TICKS(5000)); 
 
+    // Crear directorio de datos si no existe
+    if (!LittleFS.exists("/www/data")) {
+        LittleFS.mkdir("/www/data");
+    }
+
+    // Al arrancar, verificamos y aplicamos política de retención
+    mgr->enforceDataRetention();
+
     for(;;) {
         esp_task_wdt_reset(); // Alimentar al perro guardián
         
@@ -97,40 +142,53 @@ void TelemetryManager::dataLoggerTask(void *parameter) {
             float t = mgr->getTemperature();
             float h = mgr->getHumidity();
             float b = mgr->getBatteryVoltage();
+            
+            time_t now; 
+            time(&now);
+            
+            if (now > 1600000000LL) {
+                struct tm timeinfo;
+                localtime_r(&now, &timeinfo);
+                
+                // Formato del archivo: YYYY-MM-DD.csv
+                char fileBuf[30];
+                strftime(fileBuf, sizeof(fileBuf), "/www/data/%Y-%m-%d.csv", &timeinfo);
+                String fileName = String(fileBuf);
 
-            File file = LittleFS.open("/www/dataset.csv", "a");
-            if (file) {
-                if (file.size() > 500 * 1024) { 
+                char timeBuf[30];
+                strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", &timeinfo);
+                String timeStampStr = String(timeBuf);
+
+                bool isNewFile = !LittleFS.exists(fileName);
+                File file = LittleFS.open(fileName, "a");
+                if (file) {
+                    if (isNewFile) {
+                        file.println("timestamp,temperature,humidity,battery_v");
+                    }
+                    String csvLine = timeStampStr + "," + String(t, 2) + "," + String(h, 2) + "," + String(b, 2);
+                    file.println(csvLine);
                     file.close();
-                    LittleFS.remove("/www/dataset_old.csv");
-                    LittleFS.rename("/www/dataset.csv", "/www/dataset_old.csv");
-                    file = LittleFS.open("/www/dataset.csv", "w"); 
-                    file.println("timestamp,temperature,humidity,battery_v"); 
-                    ESP_LOGI(TAG, "FS - Rotación de logs ejecutada (500KB alcanzados).");
-                } else if (file.size() == 0) {
-                    file.println("timestamp,temperature,humidity,battery_v");
-                }
-                
-                time_t now; 
-                time(&now);
-                String timeStampStr;
-                
-                if (now > 1600000000LL) {
-                    struct tm timeinfo;
-                    localtime_r(&now, &timeinfo);
-                    char buf[30];
-                    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &timeinfo);
-                    timeStampStr = String(buf);
                 } else {
-                    timeStampStr = String(millis() / 1000); 
+                    ESP_LOGE(TAG, "FS - Imposible abrir %s para escritura.", fileName.c_str());
                 }
-
-                String csvLine = timeStampStr + "," + String(t, 2) + "," + String(h, 2) + "," + String(b, 2);
                 
-                file.println(csvLine);
-                file.close();
+                // Ocasionalmente purgar datos viejos (ej. a medianoche)
+                if (timeinfo.tm_hour == 0 && timeinfo.tm_min < 5) {
+                    mgr->enforceDataRetention();
+                }
             } else {
-                ESP_LOGE(TAG, "FS - Imposible abrir dataset.csv para escritura.");
+                // ModoFallback: Si no hay NTP, grabamos en un log temporal
+                String timeStampStr = String(millis() / 1000); 
+                bool isNewFile = !LittleFS.exists("/www/data/offline.csv");
+                File file = LittleFS.open("/www/data/offline.csv", "a");
+                if (file) {
+                    if (isNewFile) {
+                        file.println("timestamp,temperature,humidity,battery_v");
+                    }
+                    String csvLine = timeStampStr + "," + String(t, 2) + "," + String(h, 2) + "," + String(b, 2);
+                    file.println(csvLine);
+                    file.close();
+                }
             }
         }
         

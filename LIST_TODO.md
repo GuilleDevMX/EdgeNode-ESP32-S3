@@ -14,7 +14,13 @@ Este documento detalla las APIs nativas de ESP-IDF que se implementarán progres
 ## 🛡️ Fase 3: Seguridad (Core EdgeSecOps)
 - [ ] **NVS Encryption:** Cifrar la partición NVS utilizando las llaves de hardware del ESP32-S3 para proteger credenciales (SSID, contraseñas, tokens JWT, API Keys) contra extracciones físicas de la memoria Flash.
 - [ ] **Mbed TLS / HTTPS Server:** Migrar el servidor web local (`ESPAsyncWebServer`) o implementar un proxy TLS inverso para servir el dashboard React de forma segura (HTTPS) en la red local.
-- [ ] **ESP HTTPS OTA:** Reemplazar el mecanismo actual de actualización OTA por la API nativa de ESP-IDF que verifica firmas de certificados TLS y soporta *Rollback* automático si el nuevo firmware falla en el primer arranque.
+- [x] **ESP HTTPS OTA:** Reemplazar el mecanismo actual de actualización OTA por la API nativa de ESP-IDF que verifica firmas de certificados TLS y soporta *Rollback* automático si el nuevo firmware falla en el primer arranque.
+
+## 📊 Fase 5: Manejo de Datos (Time-Series Data)
+- [ ] **Almacenamiento Histórico Diario:** Segmentar la escritura de datos CSV (telemetría) en archivos por día (`YYYY-MM-DD.csv`) para optimizar el Wear Leveling del LittleFS y mejorar la eficiencia de lectura.
+- [ ] **Retención Automática (Data Retention):** Crear una política dinámica de borrado en C++ (limpiador de espacio) configurada por el usuario (ej. retención de 1 a 3 meses) que elimine el historial más antiguo para prevenir desbordamientos de Flash.
+- [ ] **Calendario Interactivo en Frontend (React):** Implementar un calendario (ej. `react-calendar` o `react-day-picker`) en el Dashboard Operacional para seleccionar, visualizar y graficar en tiempo real datasets históricos.
+- [ ] **Nuevos Endpoints RESTful:** Agregar `/api/datasets` (listar fechas disponibles), refactorizar `/api/dataset?date=...` y agregar `/api/config/storage` (configurar meses de retención).
 
 ## 🌐 Fase 4: Conectividad Avanzada
 - [x] **Wi-Fi Easy Connect™ (DPP) / Unified Provisioning:** Añadir soporte para el aprovisionamiento de red mediante escaneo de código QR en una pantalla OLED (GM009605V4-I2C-OLED), eliminando la necesidad de conectarse manualmente a la red WiFi abierta del OOBE.

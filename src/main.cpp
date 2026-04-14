@@ -131,6 +131,9 @@ esp_err_t init_system() {
 // --- CICLO PRINCIPAL ---
 void setup() {
     Serial.begin(115200);
+    Serial.setDebugOutput(true); // Redirigir todos los ESP_LOGx nativos al USB CDC
+    delay(2000); // Esperar 2 segundos para la enumeración del puerto USB nativo
+
     initSecureRNG();
 
     if (init_system() != ESP_OK) {

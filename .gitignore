@@ -57,3 +57,11 @@ ehthumbs.db
 Thumbs.db
 
 GEMINI.md
+
+# ignore all the python files
+
+*.py
+*.pyc
+__pycache__/
+
+LIST_TODO.md

@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import toast, { Toaster } from "react-hot-toast";
+import { DayPicker } from 'react-day-picker';
+import 'react-day-picker/dist/style.css';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
   ResponsiveContainer, ScatterChart, Scatter, ZAxis,
@@ -67,6 +71,7 @@ export default function App() {
   const [smtpConfig, setSmtpConfig] = useState({ enabled: false, host: "smtp.gmail.com", port: 465, user: "", pass: "", dest: "", t_max: 35.0, t_min: 10.0, h_max: 60.0, h_min: 20.0, b_min: 3.2, cooldown: 60, alert_temp: true, alert_hum: true, alert_sec: true });
   const [waConfig, setWaConfig] = useState({ enabled: false, phone: "", api_key: "" });
   const [cloudConfig, setCloudConfig] = useState({ enabled: false, url: "", token: "" });
+  const [pwrConfig, setPwrConfig] = useState({ sleep_en: false, sleep_time_m: 15, retention_d: 30 });
 
   const [usersList, setUsersList] = useState<any[]>([]);
   const [newUser, setNewUser] = useState({ username: "", password: "", role: "viewer" });
@@ -80,6 +85,32 @@ export default function App() {
   // =====================================================================
   // 6. ESTADOS DERIVADOS (Métricas Calculadas al Vuelo)
   // =====================================================================
+  const [availableDatasets, setAvailableDatasets] = useState<string[]>([]);
+  const [selectedDatasetDate, setSelectedDatasetDate] = useState<string>("");
+
+  const fetchDatasets = async () => {
+    if (!authToken) return;
+    try {
+      const baseUrl = import.meta.env.VITE_EDGE_API_URL || (import.meta.env.DEV ? "http://192.168.1.171" : "");
+      const res = await apiFetch(`${baseUrl}/api/datasets`, { headers: { Authorization: `Bearer ${authToken}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableDatasets(data);
+        if (data.length > 0 && !selectedDatasetDate) {
+          setSelectedDatasetDate(data[data.length - 1]); // Seleccionar el más reciente por defecto
+        }
+      }
+    } catch (err) {
+      console.error("No se pudieron cargar los datasets:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeMenu === "config" && activeTab === "datos") {
+      fetchDatasets();
+    }
+  }, [activeMenu, activeTab, authToken]);
+
   const stats = useMemo(() => {
     if (chartData.length === 0) return null;
     const visibleData = chartData.slice(-timeWindow);
@@ -293,6 +324,8 @@ export default function App() {
           if (res.ok) setApiKeysList(await res.json());
         } else if (activeTab === "datos") {
           await refreshStorageMetrics();
+          const res = await apiFetch(`${baseUrl}/api/config/power`, { headers });
+          if (res.ok) setPwrConfig(await res.json());
         } else if (activeTab === "firmware") {
           const res = await apiFetch(`${baseUrl}/api/system/info`, { headers });
           if (res.ok) setSysInfo(await res.json());
@@ -336,6 +369,14 @@ export default function App() {
     } catch (err) { toast.error("Error de conexión."); }
   };
 
+  const handleSavePwr = async () => {
+    try {
+      const baseUrl = import.meta.env.DEV ? 'http://192.168.1.171' : '';
+      const res = await apiFetch(`${baseUrl}/api/config/power`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` }, body: JSON.stringify(pwrConfig) });
+      if (res.ok) toast.success("Configuración de Retención guardada."); else toast.error("Error al guardar Retención.");
+    } catch (err) { toast.error("Error de conexión."); }
+  };
+
   // -- Auth Handlers --
   const handleLoginSuccess = (token: string) => {
     sessionStorage.setItem("edge_auth_token", token);
@@ -361,16 +402,16 @@ export default function App() {
 
   // -- Archivos y OTA --
   const downloadDataset = async () => {
-    if (!authToken) return;
+    if (!authToken || !selectedDatasetDate) return;
     try {
-      const apiUrl = import.meta.env.DEV ? "http://192.168.1.171/api/dataset" : "/api/dataset";
+      const apiUrl = import.meta.env.DEV ? `http://192.168.1.171/api/dataset?date=${selectedDatasetDate}` : `/api/dataset?date=${selectedDatasetDate}`;
       const response = await apiFetch(apiUrl, { method: "GET", headers: { Authorization: `Bearer ${authToken}` } });
       if (!response.ok) throw new Error("Fallo en extracción del servidor Edge.");
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `edgenode_telemetry_${new Date().getTime()}.csv`;
+      a.href = url; a.download = `edgenode_telemetry_${selectedDatasetDate}.csv`;
       document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
     } catch (error: any) { toast.error(`[SecOps] Bloqueo de descarga: ${error.message}`); }
   };
@@ -975,6 +1016,32 @@ export default function App() {
             </p>
           </div>
         </div>
+
+        {/* CALENDARIO DE DATOS HISTÓRICOS */}
+        <div className="bg-white p-5 rounded-lg shadow-sm border border-gray-200 flex flex-col lg:col-span-2">
+          <h4 className="text-sm font-bold text-gray-700 mb-4 border-b pb-2 uppercase tracking-wider">
+            Telemetría Histórica
+          </h4>
+          <div className="flex-1 w-full flex flex-col justify-center items-center">
+             <DayPicker
+                mode="single"
+                locale={es}
+                selected={selectedDatasetDate ? parseISO(selectedDatasetDate) : undefined}
+                onSelect={(date) => setSelectedDatasetDate(date ? format(date, 'yyyy-MM-dd') : "")}
+                modifiers={{ available: availableDatasets.map(d => parseISO(d)) }}
+                modifiersClassNames={{ available: 'font-bold text-teal-600 bg-teal-50 rounded-full' }}
+                disabled={(date) => !availableDatasets.includes(format(date, 'yyyy-MM-dd'))}
+                className="scale-90 md:scale-100"
+              />
+              <p className="text-sm text-gray-600 mt-4">
+                 Dataset Seleccionado: <span className="font-mono font-bold text-navy-dark">{selectedDatasetDate ? `${selectedDatasetDate}.csv` : "Ninguno"}</span>
+              </p>
+              <p className="text-[10px] text-gray-500 mt-1">
+                 Puede descargar el archivo CSV desde la pestaña Sistema en Configuración.
+              </p>
+          </div>
+        </div>
+
       </div>
     );
   };
@@ -1304,7 +1371,7 @@ export default function App() {
                   )}
                 </div>
               </section>
-
+ 
               {/* 2. RED DE RESCATE (SoftAP) */}
               <section className="bg-gray-50 p-6 rounded-lg border border-gray-200">
                 <div className="flex items-center gap-2 mb-4 border-b border-gray-200 pb-2">
@@ -2361,6 +2428,8 @@ export default function App() {
                       icon: "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
                       endpoints: [
                         { method: "GET", path: "/api/dataset", roles: ["Admin", "Operador", "API Key"], desc: "Descarga del log histórico completo en formato CSV (Raw Data).", payload: null },
+                        { method: "GET", path: "/api/system/logs", roles: ["Admin", "Operador", "Visor"], desc: "Retorna registro de auditoría (Audit Trail) del sistema en JSON filtrado por RBAC.", payload: null },
+                        { method: "POST", path: "/api/system/logs/clear", roles: ["Admin"], desc: "Purga la bitácora de auditoría. Requiere contraseña root obligatoria.", payload: '{"password": "str"}' },
                         { method: "WS", path: "/ws", roles: ["Admin", "Operador", "Visor"], desc: "Stream bidireccional. Retorna telemetría (JSON) y estado del nodo.", payload: '{"type": "auth", "token": "<JWT>"}' },
                       ],
                     },
@@ -2384,6 +2453,7 @@ export default function App() {
                         /* ⚠️ NUEVOS ENDPOINTS AÑADIDOS AQUÍ ⚠️ */
                         { method: "GET/POST", path: "/api/config/whatsapp", roles: ["Admin"], desc: "Credenciales de la API CallMeBot para notificaciones instantáneas de WhatsApp.", payload: '{"enabled": bool, "phone": "str", "api_key": "str"}' },
                         { method: "GET/POST", path: "/api/config/cloud", roles: ["Admin"], desc: "Sincronización M2M: Webhook HTTPS para inyectar telemetría directa a Bases de Datos en la nube.", payload: '{"enabled": bool, "url": "str", "token": "str"}' },
+                        { method: "GET/POST", path: "/api/config/power", roles: ["Admin"], desc: "Configuración del comportamiento de ahorro energético en Deep Sleep.", payload: '{"sleep_en": bool, "sleep_time_m": int}' },
                       ],
                     },
                     {
@@ -2392,12 +2462,10 @@ export default function App() {
                       endpoints: [
                         { method: "GET", path: "/api/system/info", roles: ["Admin", "Operador", "Visor"], desc: "Retorna versión de Firmware, modelo del Chip, Cores, e información del TinyML.", payload: null },
                         { method: "GET", path: "/api/system/storage", roles: ["Admin"], desc: "Estadísticas de ocupación de las particiones NVS (Base de Datos) y LittleFS.", payload: null },
-                        { method: "POST", path: "/api/system/ota", roles: ["Admin"], desc: "Over-The-Air Update. Inyecta binarios directamente en particiones OTA_0 u OTA_1.", payload: 'FormData { "firmware": File (.bin/.tflite) }' },
+                        { method: "POST", path: "/api/system/ota", roles: ["Admin"], desc: "HTTPS OTA Update. Inicia la descarga automática del firmware usando la URL proporcionada.", payload: '{"url": "https://..."}' },
                         { method: "POST", path: "/api/system/reboot", roles: ["Admin"], desc: "Ejecuta un reinicio seguro (Soft-Reset) a nivel microcontrolador.", payload: "Ninguno" },
                         { method: "POST", path: "/api/system/format_logs", roles: ["Admin"], desc: "Purga destructiva: Elimina el dataset.csv de LittleFS permanentemente.", payload: "Ninguno" },
                         { method: "POST", path: "/api/system/factory_reset", roles: ["Admin"], desc: "Borrado Criptográfico: Destruye la NVS completa. Fuerza modo OOBE.", payload: "Ninguno" },
-                        { method: "GET", path: "/api/health", roles: ["Público"], desc: "Healthcheck rápido. Retorna Uptime, Heap y calidad WiFi.", payload: "Ninguno" },
-                        { method: "GET", path: "/api/system/battery", roles: ["API Key", "Admin", "Operador"], desc: "Retorna voltaje, porcentaje y estado de carga (TP4056).", payload: "Ninguno" },
                       ],
                     },
                   ].map((group, gIdx) => (
@@ -2602,56 +2670,87 @@ export default function App() {
 
               {/* 2. EXTRACCIÓN DE DATOS (TinyML Tubería) */}
               <section className="bg-white p-6 rounded-lg border-2 border-dashed border-gray-300">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div>
+                <div className="flex flex-col md:flex-row items-start justify-between gap-6">
+                  <div className="flex-1">
                     <h4 className="text-lg font-bold text-navy-dark flex items-center gap-2">
-                      <svg
-                        className="w-5 h-5 text-orange-accent"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        ></path>
-                      </svg>
-                      Dataset de Entrenamiento (TinyML)
+                      <svg className="w-5 h-5 text-orange-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                      Dataset Histórico de Telemetría (Time-Series)
                     </h4>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Archivo:{" "}
-                      <span className="font-mono text-navy-dark font-bold">
-                        dataset.csv
-                      </span>{" "}
-                      • Tamaño: {(storageMetrics.fs_used / 1024).toFixed(1)} KB
-                    </p>
-                  </div>
+                    
+                    <div className="mt-4 bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-800 rounded-md">
+                      <strong className="font-bold flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        Política de Retención Automática:
+                      </strong>
+                      <p className="mt-1 ml-5">
+                        Los datos se almacenan en particiones diarias (YYYY-MM-DD) en LittleFS.
+                        Para maximizar la vida útil de la Flash, el firmware <strong>sobrescribirá de forma cíclica los archivos más antiguos</strong> según el límite de días (por defecto: 30 días). Descargue regularmente sus archivos de entrenamiento.
+                      </p>
+                    </div>
 
-                  <button
-                    onClick={downloadDataset}
-                    className="flex items-center gap-2 px-6 py-3 bg-navy-dark text-white rounded font-bold hover:bg-gray-800 shadow-lg transition-transform active:scale-95 whitespace-nowrap"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                      ></path>
-                    </svg>
-                    Extraer Dataset
-                  </button>
+                    <div className="mt-5 flex flex-col md:flex-row items-end md:items-center gap-4">
+                      <div className="w-full md:w-auto flex-1">
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                          Seleccionar Partición Diaria
+                        </label>
+                        <select
+                          value={selectedDatasetDate}
+                          onChange={(e) => setSelectedDatasetDate(e.target.value)}
+                          className="w-full p-3 bg-gray-50 border border-gray-300 rounded focus:ring-2 focus:ring-orange-accent outline-none font-mono text-navy-dark shadow-inner"
+                        >
+                          {availableDatasets.length === 0 && <option value="">Sin datos almacenados</option>}
+                          {availableDatasets.map((date) => (
+                            <option key={date} value={date}>Dataset: {date}.csv</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <button
+                        onClick={downloadDataset}
+                        disabled={!selectedDatasetDate}
+                        className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-3 bg-navy-dark text-white rounded font-bold hover:bg-gray-800 shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Extraer Archivo CSV
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </section>
 
-              {/* 3. ZONA DE PELIGRO (Acciones Destructivas) */}
+              {/* 3. POLÍTICA DE RETENCIÓN */}
+              <section className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                <div className="flex items-center gap-2 mb-4 border-b border-gray-200 pb-2">
+                  <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  <h4 className="text-lg font-bold text-navy-dark">Política de Retención (Limpieza Automática)</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-2">Límite Histórico en Flash (Días)</label>
+                    <select
+                      value={pwrConfig.retention_d}
+                      onChange={(e) => setPwrConfig({ ...pwrConfig, retention_d: parseInt(e.target.value) })}
+                      className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 outline-none"
+                    >
+                      <option value={7}>7 días (1 Semana)</option>
+                      <option value={15}>15 días</option>
+                      <option value={30}>30 días (~1 Mes)</option>
+                      <option value={60}>60 días (~2 Meses)</option>
+                      <option value={90}>90 días (~3 Meses)</option>
+                    </select>
+                  </div>
+                  <div className="flex justify-end mt-4 md:mt-0">
+                    <button
+                      onClick={handleSavePwr}
+                      className="px-6 py-2 bg-teal-600 text-white rounded font-bold hover:bg-teal-700 shadow transition-all active:scale-95"
+                    >
+                      Guardar Política
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              {/* 4. ZONA DE PELIGRO (Acciones Destructivas) */}
               <section className="bg-red-50 p-6 rounded-lg border border-red-200">
                 <div className="flex items-center gap-2 mb-4 border-b border-red-200 pb-2">
                   <svg

@@ -527,15 +527,51 @@ esp_err_t ApiServer::begin(bool oobeMode) {
     // ========================================================================
     // 3. EXTRACCIÓN DE DATOS Y TELEMETRÍA
     // ========================================================================
+    server.on("/api/datasets", HTTP_GET, [](AsyncWebServerRequest *request){
+        if(!isIpAllowed(request)) { auto r = request->beginResponse(403, "application/json", "{\"error\":\"Firewall\"}"); addSecurityHeaders(r); request->send(r); return; }
+        if(!isAuthorized(request, "operator") && !isAuthorized(request, "m2m_dataset")) { 
+            auto r = request->beginResponse(401, "application/json", "{\"error\":\"Acceso Denegado.\"}"); addSecurityHeaders(r); request->send(r); return; 
+        }
+        
+        JsonDocument doc;
+        JsonArray filesArr = doc.to<JsonArray>();
+
+        if (LittleFS.exists("/www/data")) {
+            File dir = LittleFS.open("/www/data");
+            File file = dir.openNextFile();
+            while (file) {
+                String fileName = file.name();
+                if (fileName.endsWith(".csv")) {
+                    fileName.replace(".csv", "");
+                    filesArr.add(fileName);
+                }
+                file.close();
+                file = dir.openNextFile();
+            }
+            dir.close();
+        }
+        
+        String response; serializeJson(doc, response);
+        auto r = request->beginResponse(200, "application/json", response); addSecurityHeaders(r); request->send(r);
+    });
+
     server.on("/api/dataset", HTTP_GET, [](AsyncWebServerRequest *request){
         if(!isIpAllowed(request)) { auto r = request->beginResponse(403, "application/json", "{\"error\":\"Firewall\"}"); addSecurityHeaders(r); request->send(r); return; }
         if(!isAuthorized(request, "operator") && !isAuthorized(request, "m2m_dataset")) { 
             auto r = request->beginResponse(401, "application/json", "{\"error\":\"Acceso Denegado.\"}"); addSecurityHeaders(r); request->send(r); return; 
         }
-        if(LittleFS.exists("/www/dataset.csv")) {
-            auto r = request->beginResponse(LittleFS, "/www/dataset.csv", "text/csv", true); addSecurityHeaders(r); request->send(r);
+        
+        String date = "offline";
+        if (request->hasParam("date")) {
+            date = request->getParam("date")->value();
+        }
+        
+        String filePath = "/www/data/" + date + ".csv";
+        
+        if(LittleFS.exists(filePath)) {
+            auto r = request->beginResponse(LittleFS, filePath, "text/csv", true); addSecurityHeaders(r); request->send(r);
         } else {
-            auto r = request->beginResponse(404, "application/json", "{\"error\":\"Dataset vacío.\"}"); addSecurityHeaders(r); request->send(r);
+            auto r = request->beginResponse(404, "application/json", "{\"error\":\"Dataset no encontrado para la fecha solicitada.\"}"); addSecurityHeaders(r); request->send(r);
         }
     });
     
@@ -857,13 +893,14 @@ esp_err_t ApiServer::begin(bool oobeMode) {
     });
     server.addHandler(saveCloudHandler);
 
-    // --- ENDPOINT: POWER CONFIG ---
+    // --- ENDPOINT: POWER & STORAGE CONFIG ---
     server.on("/api/config/power", HTTP_GET, [](AsyncWebServerRequest *request) {
         if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
         if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
         JsonDocument doc; prefs.begin("pwr", true);
         doc["sleep_en"] = prefs.getBool("sleep_en", false);
         doc["sleep_time_m"] = prefs.getInt("sleep_time_m", 15);
+        doc["retention_d"] = prefs.getInt("retention_d", 30);
         prefs.end();
         String response; serializeJson(doc, response);
         auto r = request->beginResponse(200, "application/json", response); addSecurityHeaders(r); request->send(r);
@@ -874,11 +911,12 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         JsonObject data = json.as<JsonObject>(); prefs.begin("pwr", false);
         if(data["sleep_en"].is<bool>()) prefs.putBool("sleep_en", data["sleep_en"].as<bool>());
         if(data["sleep_time_m"].is<int>()) prefs.putInt("sleep_time_m", data["sleep_time_m"].as<int>());
+        if(data["retention_d"].is<int>()) prefs.putInt("retention_d", data["retention_d"].as<int>());
         prefs.end();
-        ESP_LOGI(TAG, "SYS - Configuración de Energía actualizada.");
-        String logMsg = "Actualización de configuración de energía.";
+        ESP_LOGI(TAG, "SYS - Configuración de Energía/Almacenamiento actualizada.");
+        String logMsg = "Actualización de configuración de energía y retención.";
         writeAuditLog("INFO", "admin", logMsg);
-        auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\",\"message\":\"Configuración de energía guardada.\"}"); addSecurityHeaders(r); request->send(r);
+        auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\",\"message\":\"Configuración guardada.\"}"); addSecurityHeaders(r); request->send(r);
     });
     server.addHandler(pwrUpdateHandler);
 

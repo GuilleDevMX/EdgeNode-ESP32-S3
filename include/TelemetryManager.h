@@ -13,6 +13,7 @@ private:
     String currentPowerState;
 
     static void sensorTask(void *parameter);
+    void enforceDataRetention();
     static void dataLoggerTask(void *parameter);
 
 public:
