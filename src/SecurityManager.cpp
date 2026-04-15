@@ -57,23 +57,27 @@ String SecurityManagerClass::hashPasswordWithSalt(const String& password,
 
 // --- CICLO DE VIDA ---
 esp_err_t SecurityManagerClass::begin() {
-    // Unificar namespace: "users" con prefijo "root_"
-    ESP_RETURN_ON_FALSE(xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(100)) == pdTRUE, ESP_ERR_TIMEOUT, TAG, "Timeout esperando mutex de NVS en begin()");
+    ESP_RETURN_ON_FALSE(xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(100)) == pdTRUE, ESP_ERR_TIMEOUT, TAG, "Timeout mutex NVS");
     
     Preferences prefs;
-    if (prefs.begin("users", true)) {
+    
+    if (prefs.begin("users", false)) {
         String rootUser = prefs.getString("root_name", "");
         String rootHash = prefs.getString("root_hash", "");
         prefs.end();
         
-        // Provisionado si existen credenciales root válidas
         provisioned = (rootUser != "" && rootHash != "");
+        
+        if (!provisioned) {
+            ESP_LOGW(TAG, "NVS Virgen - Nodo sin aprovisionar. Pendiente de OOBE.");
+        }
     } else {
-        ESP_LOGE(TAG, "Error abriendo namespace 'users'");
+        ESP_LOGE(TAG, "Error fatal de hardware abriendo NVS 'users'");
         provisioned = false;
         xSemaphoreGive(nvsMutex);
         return ESP_FAIL;
     }
+    
     xSemaphoreGive(nvsMutex);
     return ESP_OK;
 }

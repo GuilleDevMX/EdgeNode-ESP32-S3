@@ -44,16 +44,29 @@ esp_err_t NetworkManager::startSecureProvisioning() {
     if(ap_ssid == "") ap_ssid = String(default_ssid);
     if(ap_pass == "") ap_pass = String(default_pass);
 
+    // FIX DEVSECOPS: Resetear el driver de red para purgar estados corruptos
+    WiFi.disconnect(true, true);
+    delay(100);
+
+    // MODO DUAL: AP para alojar el portal, STA para permitir escaneo de redes
     WiFi.mode(WIFI_AP_STA);
+    
+    // Asignar IP estática predecible para el portal
+    IPAddress apIP(192, 168, 4, 1);
+    WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+
     if(WiFi.softAP(ap_ssid.c_str(), ap_pass.c_str(), 1, ap_hide ? 1 : 0, 4)) { 
-        ESP_LOGI(TAG, "--- MODO PROVISION / RESCATE ACTIVO ---");
+        ESP_LOGI(TAG, "--- MODO PROVISION (WEB CAPTIVE PORTAL) ---");
         ESP_LOGI(TAG, "SSID: %s (Oculto: %s)", ap_ssid.c_str(), ap_hide ? "SI" : "NO");
         ESP_LOGI(TAG, "PASS: %s", ap_pass.c_str());
-        ESP_LOGI(TAG, "Gateway IP: %s", WiFi.softAPIP().toString().c_str());
-    } else {
-        return ESP_FAIL;
+        ESP_LOGI(TAG, "Panel Setup: http://192.168.4.1");
+        
+        // Reflejar en la pantalla OLED/LCD que debe conectarse por Wi-Fi
+        DisplayMgr.showMessage("Setup Mode", ("Connect to:\n" + ap_ssid + "\nIP: 192.168.4.1").c_str());
+        
+        return ESP_OK;
     }
-    return ESP_OK;
+    return ESP_FAIL;
 }
 
 esp_err_t NetworkManager::startBLEProvisioningQR() {
@@ -271,7 +284,7 @@ void NetworkManager::handleLoop() {
     if (WiFi.getMode() == WIFI_STA && millis() - lastWifiCheck > 30000) { 
         lastWifiCheck = millis();
         if (WiFi.status() != WL_CONNECTED) {
-            ESP_LOGW(TAG, "NET - Enlace WiFi caído (Router reiniciado/Lejos). Forzando reconexión...");
+            ESP_LOGW(TAG, "NET - Enlace WiFi caido (Router reiniciado/Lejos). Forzando reconexión...");
             WiFi.disconnect();
             WiFi.reconnect();
         }

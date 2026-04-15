@@ -157,15 +157,15 @@ void TelemetryManager::sensorTask(void *parameter) {
     int dhtType = prefs.getInt("dht_type", 22); 
     int adcPin = prefs.getInt("adc_pin", 5);
     int adcGndPin = prefs.getInt("adc_gnd_pin", -1);
-    float r1 = prefs.getFloat("r1", 50000.0);
-    float r2 = prefs.getFloat("r2", 47000.0);
+    float r1 = prefs.getFloat("r1", 51000.0);
+    float r2 = prefs.getFloat("r2", 51000.0);
     float tempOffset = prefs.getFloat("t_off", -0.5);
-    float adcOffset = prefs.getFloat("adc_off", 0.0);
-    float adcMult = prefs.getFloat("adc_mult", 1.0);
+    float adcOffset = prefs.getFloat("adc_off", 0.3);
+    float adcMult = prefs.getFloat("adc_mult", 0.5);
     int sleepMode = prefs.getInt("slp_mode", 0);
     int sleepTime = prefs.getInt("slp_time", 60);
 
-    int pollRate = prefs.getInt("poll", 5000);
+    int pollRate = prefs.getInt("poll", 30000);
     if (pollRate < 2000) pollRate = 2000;
     prefs.end();
 

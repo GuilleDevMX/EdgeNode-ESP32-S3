@@ -103,7 +103,7 @@ esp_err_t init_system() {
     if (!SecMgr.isProvisioned()) {
         ESP_LOGI(TAG, "SYS - Nodo sin aprovisionar. Modo OOBE y BLE Provisioning.");
         ESP_RETURN_ON_ERROR(NetMgr.startSecureProvisioning(), TAG, "Failed to start secure provisioning");
-        ESP_RETURN_ON_ERROR(NetMgr.startBLEProvisioningQR(), TAG, "Failed to start BLE provisioning");
+        // ESP_RETURN_ON_ERROR(NetMgr.startBLEProvisioningQR(), TAG, "Failed to start BLE provisioning");
         ESP_RETURN_ON_ERROR(ApiSrv.begin(true), TAG, "Failed to start API Server in OOBE mode");
         return ESP_OK;
     } else {
@@ -112,7 +112,7 @@ esp_err_t init_system() {
         if (!NetMgr.connectToOperationalWiFi()) {
             ESP_LOGE(TAG, "NET - Fallo WiFi. Modo rescate.");
             ESP_RETURN_ON_ERROR(NetMgr.startSecureProvisioning(), TAG, "Failed to start secure provisioning in rescue mode");
-            ESP_RETURN_ON_ERROR(NetMgr.startBLEProvisioningQR(), TAG, "Failed to start BLE provisioning");
+            // ESP_RETURN_ON_ERROR(NetMgr.startBLEProvisioningQR(), TAG, "Failed to start BLE provisioning");
             ESP_RETURN_ON_ERROR(ApiSrv.begin(true), TAG, "Failed to start API Server in rescue mode");      
             return ESP_OK;
         }
@@ -134,11 +134,15 @@ void setup() {
     initSecureRNG();
 
     if (init_system() != ESP_OK) {
-        ESP_LOGE(TAG, "System Halt - Inicializacion fallida.");
-        while(1) { delay(100); }
+        ESP_LOGE(TAG, "CRIT - Inicialización fallida. Entrando en Failsafe y reiniciando en 5s...");
+        
+        for(int i = 0; i < 50; i++) {
+            vTaskDelay(pdMS_TO_TICKS(100));
+            esp_task_wdt_reset(); 
+        }
+        esp_restart();
     }
 }
-
 void loop() {
     NetMgr.handleLoop();    
     static unsigned long lastTelemetry = 0;
