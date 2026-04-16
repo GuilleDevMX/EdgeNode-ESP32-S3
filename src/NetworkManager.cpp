@@ -163,7 +163,7 @@ esp_err_t NetworkManager::initNTP() {
     Preferences prefs;
     prefs.begin("wifi", true); 
     String ntpServer = prefs.getString("ntp", "time.google.com");
-    String tz = prefs.getString("tz", "CST6CDT,M4.1.0,M10.5.0"); 
+    String tz = prefs.getString("tz", "CST6"); 
     prefs.end();
     ESP_LOGI(TAG, "SYS - NTP Server: %s | TZ: %s", ntpServer.c_str(), tz.c_str());
     configTzTime(tz.c_str(), ntpServer.c_str(), "pool.ntp.org", "time.windows.com");

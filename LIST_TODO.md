@@ -19,3 +19,9 @@ Este documento detalla las APIs nativas de ESP-IDF que se implementarán progres
 ## 🌐 Fase 4: Conectividad Avanzada
 - [x] **Wi-Fi Easy Connect™ (DPP) / Unified Provisioning:** Añadir soporte para el aprovisionamiento de red mediante escaneo de código QR en una pantalla OLED (GM009605V4-I2C-OLED), eliminando la necesidad de conectarse manualmente a la red WiFi abierta del OOBE.
 - [ ] **Thread / ESP-BLE-MESH (Opcional):** Explorar la comunicación entre múltiples nodos EdgeSecOps sin depender de un router WiFi central.
+
+## 📊 Fase 5: Manejo de Datos (Time-Series Data)
+- [ ] **Almacenamiento Histórico Diario:** Segmentar la escritura de datos CSV (telemetría) en archivos por día (`YYYY-MM-DD.csv`) para optimizar el Wear Leveling del LittleFS y mejorar la eficiencia de lectura.
+- [ ] **Retención Automática (Data Retention):** Crear una política dinámica de borrado en C++ (limpiador de espacio) configurada por el usuario (ej. retención de 1 a 3 meses) que elimine el historial más antiguo para prevenir desbordamientos de Flash.
+- [ ] **Calendario Interactivo en Frontend (React):** Implementar un calendario (ej. `react-calendar` o `react-day-picker`) en el Dashboard Operacional para seleccionar, visualizar y graficar en tiempo real datasets históricos.
+- [ ] **Nuevos Endpoints RESTful:** Agregar `/api/datasets` (listar fechas disponibles), refactorizar `/api/dataset?date=...` y agregar `/api/config/storage` (configurar meses de retención).

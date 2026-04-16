@@ -18,7 +18,7 @@ export default defineConfig({
   ],
   base: './', // CRÍTICO: Fuerza rutas relativas para evitar errores 404 en el ESP32
   build: {
-    sourcemap: true, // Lighthouse: generar source maps para facilitar el debugging
+    sourcemap: false, // Lighthouse: generar source maps para facilitar el debugging
     chunkSizeWarningLimit: 1500, // Elevamos el límite del warning de Vite
     // Desplegamos directamente en la carpeta de PlatformIO
     outDir: resolve(__dirname, '../data/www'),

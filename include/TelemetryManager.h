@@ -18,6 +18,8 @@ private:
 public:
     TelemetryManager();
     esp_err_t begin();
+    
+    void cleanupOldDatasets();
 
     float getTemperature();
     float getHumidity();

@@ -14,6 +14,8 @@ const DataSettings = () => {
   });
   
   const { token: authToken, logout } = useAuth();
+  const [retention, setRetention] = useState<number>(1);
+  const [isSaving, setIsSaving] = useState(false);
 
   const downloadDataset = async () => {
     if (!authToken) return;
@@ -43,8 +45,29 @@ const DataSettings = () => {
     try {
       const res = await apiFetch('/api/system/storage');
       setStorageMetrics(await res.json());
+      
+      const configRes = await apiFetch('/api/config/storage');
+      const configData = await configRes.json();
+      if (configData.retention) {
+        setRetention(configData.retention);
+      }
     } catch (error) {
       console.error('[SecOps] Error actualizando métricas', error);
+    }
+  };
+
+  const handleSaveRetention = async () => {
+    setIsSaving(true);
+    try {
+      await apiFetch('/api/config/storage', {
+        method: 'POST',
+        body: JSON.stringify({ retention }),
+      });
+      toast.success('Política de retención actualizada.');
+    } catch (error) {
+      // apiFetch handles toast
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -178,7 +201,56 @@ const DataSettings = () => {
           </div>
         </section>
 
-        {/* 2. EXTRACCIÓN DE DATOS (TinyML Tubería) */}
+        {/* 2. CONFIGURACIÓN DE RETENCIÓN */}
+        <section className="card p-6">
+          <div className="flex items-center gap-2 mb-4 border-b border-border-color pb-2">
+            <svg
+              className="w-5 h-5 text-blue-support"
+              fill='none'
+              stroke='currentColor'
+              viewBox='0 0 24 24'
+            >
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                strokeWidth='2'
+                d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'
+              ></path>
+            </svg>
+            <h4 className="text-lg font-bold text-text-primary">
+              Política de Retención Automática
+            </h4>
+          </div>
+          
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="w-full md:w-2/3">
+              <label className="label-field">
+                Conservar el historial de telemetría durante:
+              </label>
+              <select
+                value={retention}
+                onChange={(e) => setRetention(parseInt(e.target.value))}
+                className="input-field"
+              >
+                <option value={1}>1 Mes (Recomendado)</option>
+                <option value={2}>2 Meses</option>
+                <option value={3}>3 Meses</option>
+              </select>
+              <p className="text-xs text-text-secondary mt-2">
+                El sistema eliminará automáticamente los archivos CSV que superen este período para prevenir el desgaste de la memoria Flash.
+              </p>
+            </div>
+            <button
+              onClick={handleSaveRetention}
+              disabled={isSaving}
+              className="btn btn-primary w-full md:w-auto whitespace-nowrap mt-4 md:mt-0"
+            >
+              Guardar Política
+            </button>
+          </div>
+        </section>
+
+        {/* 3. EXTRACCIÓN DE DATOS (TinyML Tubería) */}
         <section className="bg-panel p-6 rounded-lg border-2 border-dashed border-border-color">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
@@ -229,7 +301,7 @@ const DataSettings = () => {
           </div>
         </section>
 
-        {/* 3. ZONA DE PELIGRO (Acciones Destructivas) */}
+        {/* 4. ZONA DE PELIGRO (Acciones Destructivas) */}
         <section className="bg-red-50 p-6 rounded-lg border border-red-200">
           <div className="flex items-center gap-2 mb-4 border-b border-red-200 pb-2">
             <svg

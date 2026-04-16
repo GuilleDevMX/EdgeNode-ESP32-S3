@@ -540,12 +540,76 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isAuthorized(request, "operator") && !isAuthorized(request, "m2m_dataset")) { 
             auto r = request->beginResponse(401, "application/json", "{\"error\":\"Acceso Denegado.\"}"); addSecurityHeaders(r); request->send(r); return; 
         }
-        if(LittleFS.exists("/www/dataset.csv")) {
-            auto r = request->beginResponse(LittleFS, "/www/dataset.csv", "text/csv", true); addSecurityHeaders(r); request->send(r);
+        
+        String fileName = "/www/dataset.csv";
+        if (request->hasParam("date")) {
+            fileName = "/dataset_" + request->getParam("date")->value() + ".csv";
         } else {
-            auto r = request->beginResponse(404, "application/json", "{\"error\":\"Dataset vacío.\"}"); addSecurityHeaders(r); request->send(r);
+            time_t now; time(&now);
+            if (now > 1600000000LL) {
+                struct tm timeinfo;
+                localtime_r(&now, &timeinfo);
+                char buf[30];
+                strftime(buf, sizeof(buf), "/dataset_%Y-%m-%d.csv", &timeinfo);
+                if (LittleFS.exists(buf)) {
+                    fileName = String(buf);
+                }
+            }
+        }
+
+        if(LittleFS.exists(fileName.c_str())) {
+            auto r = request->beginResponse(LittleFS, fileName.c_str(), "text/csv", true); addSecurityHeaders(r); request->send(r);
+        } else {
+            auto r = request->beginResponse(200, "text/csv", "timestamp,temperature,humidity,battery_v\n"); addSecurityHeaders(r); request->send(r);
         }
     });
+
+    server.on("/api/datasets", HTTP_GET, [](AsyncWebServerRequest *request){
+        if(!isIpAllowed(request)) { auto r = request->beginResponse(403, "application/json", "{\"error\":\"Firewall\"}"); addSecurityHeaders(r); request->send(r); return; }
+        if(!isAuthorized(request, "operator") && !isAuthorized(request, "m2m_dataset")) { 
+            auto r = request->beginResponse(401, "application/json", "{\"error\":\"Acceso Denegado.\"}"); addSecurityHeaders(r); request->send(r); return; 
+        }
+        
+        JsonDocument doc; JsonArray files = doc.to<JsonArray>();
+        File root = LittleFS.open("/");
+        File file = root.openNextFile();
+        while(file) {
+            String name = file.name();
+            if (name.startsWith("dataset_") && name.endsWith(".csv")) {
+                String dateStr = name.substring(8, 18);
+                JsonObject obj = files.add<JsonObject>();
+                obj["date"] = dateStr;
+                obj["size"] = file.size();
+            } else if (name == "dataset.csv") {
+                JsonObject obj = files.add<JsonObject>();
+                obj["date"] = "today";
+                obj["size"] = file.size();
+            }
+            file = root.openNextFile();
+        }
+        String response; serializeJson(doc, response);
+        auto r = request->beginResponse(200, "application/json", response); addSecurityHeaders(r); request->send(r);
+    });
+
+    server.on("/api/config/storage", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
+        if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
+        JsonDocument doc; prefs.begin("data", true);
+        doc["retention"] = prefs.getInt("retention", 1);
+        prefs.end();
+        String response; serializeJson(doc, response);
+        auto r = request->beginResponse(200, "application/json", response); addSecurityHeaders(r); request->send(r);
+    });
+
+    AsyncCallbackJsonWebHandler* storageUpdateHandler = new AsyncCallbackJsonWebHandler("/api/config/storage", [](AsyncWebServerRequest *request, JsonVariant &json) {
+        if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401, "application/json", "{\"error\":\"No autorizado.\"}"); addSecurityHeaders(r); request->send(r); return; }
+        JsonObject data = json.as<JsonObject>(); prefs.begin("data", false);
+        if(data["retention"].is<int>()) prefs.putInt("retention", data["retention"].as<int>());
+        prefs.end();
+        TelemetryMgr.cleanupOldDatasets(); // Forzar limpieza
+        auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}"); addSecurityHeaders(r); request->send(r);
+    });
+    server.addHandler(storageUpdateHandler);
     
     ws.onEvent(onWsEvent); 
     server.addHandler(&ws);
@@ -658,7 +722,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         prefs.begin("wifi", true);
         doc["ap_ssid"] = prefs.getString("ap_ssid", ""); doc["ap_hide"] = prefs.getBool("ap_hide", false);
         doc["mdns"] = prefs.getString("mdns", "edgenode"); doc["ntp"] = prefs.getString("ntp", "time.google.com");
-        doc["tz"] = prefs.getString("tz", "CST6CDT,M4.1.0,M10.5.0");
+        doc["tz"] = prefs.getString("tz", "CST6");
         prefs.end();
         
         String response; serializeJson(doc, response); 
@@ -955,7 +1019,15 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         // Registrar la creación en la auditoría
         String logMsg = "Formato de logs solicitado.";
         writeAuditLog("INFO", "admin", logMsg);
-        LittleFS.remove("/www/dataset.csv"); LittleFS.remove("/www/dataset_old.csv");
+        File root = LittleFS.open("/");
+        File file = root.openNextFile();
+        while(file) {
+            String name = file.name();
+            if (name.startsWith("dataset") && name.endsWith(".csv")) {
+                LittleFS.remove("/www/" + name);
+            }
+            file = root.openNextFile();
+        }
         auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}"); addSecurityHeaders(r); request->send(r);
     });
 

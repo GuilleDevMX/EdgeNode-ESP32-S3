@@ -82,6 +82,43 @@ int TelemetryManager::getBatteryPercentage(float voltage) {
     return (int)(((voltage - 3.2) / (4.2 - 3.2)) * 100.0);
 }
 
+void TelemetryManager::cleanupOldDatasets() {
+    Preferences prefs;
+    prefs.begin("data", true);
+    int retentionMonths = prefs.getInt("retention", 1); // default 1 month
+    prefs.end();
+
+    int retentionDays = retentionMonths * 30;
+    
+    time_t now;
+    time(&now);
+    if (now < 1600000000LL) return; // NTP not synced
+    
+    File root = LittleFS.open("/");
+    if (!root || !root.isDirectory()) return;
+
+    File file = root.openNextFile();
+    while (file) {
+        String fileName = file.name();
+        // check if it matches dataset_YYYY-MM-DD.csv
+        if (fileName.startsWith("dataset_") && fileName.endsWith(".csv")) {
+            String dateStr = fileName.substring(8, 18); // "YYYY-MM-DD"
+            struct tm fileTime;
+            memset(&fileTime, 0, sizeof(struct tm));
+            if (strptime(dateStr.c_str(), "%Y-%m-%d", &fileTime) != NULL) {
+                time_t fileEpoch = mktime(&fileTime);
+                double diff = difftime(now, fileEpoch);
+                if (diff > retentionDays * 86400.0) {
+                    ESP_LOGI(TAG, "FS - Borrando log antiguo: %s", fileName.c_str());
+                    String fullPath = "/" + fileName;
+                    LittleFS.remove(fullPath.c_str());
+                }
+            }
+        }
+        file = root.openNextFile();
+    }
+}
+
 void TelemetryManager::dataLoggerTask(void *parameter) {
     TelemetryManager* mgr = (TelemetryManager*)parameter;
     
@@ -89,6 +126,11 @@ void TelemetryManager::dataLoggerTask(void *parameter) {
     esp_task_wdt_add(NULL);
     
     vTaskDelay(pdMS_TO_TICKS(5000)); 
+
+    // Limpieza inicial
+    mgr->cleanupOldDatasets();
+
+    int loopCount = 0;
 
     for(;;) {
         esp_task_wdt_reset(); // Alimentar al perro guardián
@@ -98,40 +140,43 @@ void TelemetryManager::dataLoggerTask(void *parameter) {
             float h = mgr->getHumidity();
             float b = mgr->getBatteryVoltage();
 
-            File file = LittleFS.open("/www/dataset.csv", "a");
+            time_t now; 
+            time(&now);
+            String timeStampStr;
+            String fileName = "/dataset.csv"; // fallback
+            
+            if (now > 1600000000LL) {
+                struct tm timeinfo;
+                localtime_r(&now, &timeinfo);
+                char bufTime[30];
+                strftime(bufTime, sizeof(bufTime), "%Y-%m-%d %H:%M:%S", &timeinfo);
+                timeStampStr = String(bufTime);
+                
+                char bufDate[30];
+                strftime(bufDate, sizeof(bufDate), "/dataset_%Y-%m-%d.csv", &timeinfo);
+                fileName = String(bufDate);
+            } else {
+                timeStampStr = String(millis() / 1000); 
+            }
+
+            File file = LittleFS.open(fileName.c_str(), "a");
             if (file) {
-                if (file.size() > 500 * 1024) { 
-                    file.close();
-                    LittleFS.remove("/www/dataset_old.csv");
-                    LittleFS.rename("/www/dataset.csv", "/www/dataset_old.csv");
-                    file = LittleFS.open("/www/dataset.csv", "w"); 
-                    file.println("timestamp,temperature,humidity,battery_v"); 
-                    ESP_LOGI(TAG, "FS - Rotación de logs ejecutada (500KB alcanzados).");
-                } else if (file.size() == 0) {
+                if (file.size() == 0) {
                     file.println("timestamp,temperature,humidity,battery_v");
                 }
-                
-                time_t now; 
-                time(&now);
-                String timeStampStr;
-                
-                if (now > 1600000000LL) {
-                    struct tm timeinfo;
-                    localtime_r(&now, &timeinfo);
-                    char buf[30];
-                    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &timeinfo);
-                    timeStampStr = String(buf);
-                } else {
-                    timeStampStr = String(millis() / 1000); 
-                }
-
                 String csvLine = timeStampStr + "," + String(t, 2) + "," + String(h, 2) + "," + String(b, 2);
-                
                 file.println(csvLine);
                 file.close();
             } else {
-                ESP_LOGE(TAG, "FS - Imposible abrir dataset.csv para escritura.");
+                ESP_LOGE(TAG, "FS - Imposible abrir %s para escritura.", fileName.c_str());
             }
+        }
+        
+        // Ejecutar limpieza cada ~1 hora
+        loopCount++;
+        if (loopCount >= 60) {
+            loopCount = 0;
+            mgr->cleanupOldDatasets();
         }
         
         // En lugar de un delay largo que dispara el Watchdog, lo dividimos

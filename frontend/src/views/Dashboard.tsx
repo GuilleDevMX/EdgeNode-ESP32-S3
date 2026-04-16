@@ -16,12 +16,131 @@ import {
 
 import Loader from '../components/Loader';
 import { useMemo, useState, useEffect } from 'react';
+import { DayPicker } from 'react-day-picker';
+import 'react-day-picker/style.css';
+import { apiFetch } from '../api/client';
+import toast from 'react-hot-toast';
 
 const Dashboard = () => {
   const [timeWindow, setTimeWindow] = useState<number>(60);
   
   const { data: telemetry, status } = useTelemetryContext();
   const [chartData, setChartData] = useState<any[]>([]);
+
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [historicalData, setHistoricalData] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    // Cargar fechas disponibles
+    apiFetch('/api/datasets')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const dates = data.map((d: any) => d.date).filter(d => d !== 'today');
+          setAvailableDates(dates);
+        }
+      })
+      .catch(() => {});
+
+    // Pre-poblar el gráfico en vivo con los datos de hoy (dataset.csv)
+    apiFetch('/api/dataset')
+      .then(res => res.text())
+      .then(csvText => {
+        const lines = csvText.split('\n');
+        const parsedData = [];
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const [ts, temp, hum, bat] = line.split(',');
+          let timeLabel = ts;
+          if (ts.includes(' ')) timeLabel = ts.split(' ')[1];
+          parsedData.push({
+            time: timeLabel,
+            Temperatura: parseFloat(temp),
+            Humedad: parseFloat(hum),
+            Voltaje: parseFloat(bat)
+          });
+        }
+        if (parsedData.length > 0) {
+          // Tomar máximo los últimos 360 registros (30 minutos de histórico base)
+          setChartData(parsedData.slice(-360));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleDayClick = async (date: Date) => {
+    setSelectedDate(date);
+    setIsLoadingHistory(true);
+    
+    // Formatear a YYYY-MM-DD
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+
+    try {
+      const res = await apiFetch(`/api/dataset?date=${dateStr}`);
+      const csvText = await res.text();
+      
+      const lines = csvText.split('\n');
+      const parsedData = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const [ts, temp, hum, bat] = line.split(',');
+        
+        let timeLabel = ts;
+        if (ts.includes(' ')) {
+          timeLabel = ts.split(' ')[1]; // Obtener solo la hora si es formato "YYYY-MM-DD HH:MM:SS"
+        }
+        
+        parsedData.push({
+          time: timeLabel,
+          Temperatura: parseFloat(temp),
+          Humedad: parseFloat(hum),
+          Voltaje: parseFloat(bat)
+        });
+      }
+      
+      setHistoricalData(parsedData);
+      if (parsedData.length === 0) {
+        toast.error('El dataset seleccionado está vacío.');
+      } else {
+        toast.success(`Dataset cargado: ${parsedData.length} registros.`);
+      }
+    } catch (error) {
+      setHistoricalData([]);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleDownloadHistorical = async () => {
+    if (!selectedDate) return;
+    const yyyy = selectedDate.getFullYear();
+    const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(selectedDate.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    
+    try {
+      const response = await apiFetch(`/api/dataset?date=${dateStr}`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `edgenode_telemetry_${dateStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      // toast already handled by apiFetch
+    }
+  };
 
   useEffect(() => {
     if (telemetry) {
@@ -166,8 +285,8 @@ const Dashboard = () => {
 
       {/* ÁREA DE GRÁFICOS AVANZADOS */}
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-        <div className='bg-white p-5 rounded-lg shadow-sm border border-gray-200 flex flex-col lg:col-span-2'>
-          <h4 className='text-sm font-bold text-gray-700 mb-4 border-b pb-2 uppercase tracking-wider'>Tendencia Termodinámica</h4>
+        <div className='card p-5 flex flex-col lg:col-span-2'>
+          <h4 className='text-sm font-bold text-text-secondary mb-4 border-b border-border-color pb-2 uppercase tracking-wider'>Tendencia Termodinámica</h4>
           <div className='flex-1 min-h-[250px] w-full'>
             <ResponsiveContainer width='100%' height='100%'>
               <LineChart data={visibleData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
@@ -184,8 +303,8 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className='bg-white p-5 rounded-lg shadow-sm border border-gray-200 flex flex-col'>
-          <h4 className='text-sm font-bold text-gray-700 mb-4 border-b pb-2 uppercase tracking-wider flex justify-between'>
+        <div className='card p-5 flex flex-col'>
+          <h4 className='text-sm font-bold text-text-secondary mb-4 border-b border-border-color pb-2 uppercase tracking-wider flex justify-between'>
             <span>Análisis de Consumo (V_BAT)</span>
           </h4>
           <div className='flex-1 min-h-[220px] w-full'>
@@ -201,10 +320,10 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className='bg-white p-5 rounded-lg shadow-sm border border-gray-200 flex flex-col'>
-          <h4 className='text-sm font-bold text-gray-700 mb-4 border-b pb-2 uppercase tracking-wider flex justify-between items-center'>
+        <div className='card p-5 flex flex-col'>
+          <h4 className='text-sm font-bold text-text-secondary mb-4 border-b border-border-color pb-2 uppercase tracking-wider flex justify-between items-center'>
             <span>Dispersión Ambiental (TinyML View)</span>
-            <span className='text-[10px] text-gray-400 font-normal normal-case'>Temp vs Humedad</span>
+            <span className='text-[10px] text-text-muted font-normal normal-case'>Temp vs Humedad</span>
           </h4>
           <div className='flex-1 min-h-[220px] w-full'>
             <ResponsiveContainer width='100%' height='100%'>
@@ -217,6 +336,79 @@ const Dashboard = () => {
                 <Scatter name='Lecturas' data={visibleData} fill='#14B8A6' opacity={0.6} isAnimationActive={false} />
               </ScatterChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* EXPLORADOR DE DATASETS HISTÓRICOS */}
+      <div className='card p-6 mt-8'>
+        <div className='flex items-center gap-2 mb-6 border-b border-border-color pb-2'>
+          <svg className='w-6 h-6 text-accent' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'></path></svg>
+          <h3 className='text-xl font-bold text-text-primary'>Explorador de Datasets Históricos</h3>
+        </div>
+
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
+          <div className='lg:col-span-1 bg-app p-4 rounded-xl border border-border-color flex justify-center'>
+            <DayPicker 
+              mode="single"
+              selected={selectedDate}
+              onSelect={(d) => d && handleDayClick(d)}
+              modifiers={{
+                available: availableDates.map(d => {
+                  const [y, m, day] = d.split('-');
+                  return new Date(parseInt(y), parseInt(m)-1, parseInt(day));
+                })
+              }}
+              modifiersStyles={{
+                available: { fontWeight: 'bold', textDecoration: 'underline', color: 'var(--color-accent)' }
+              }}
+            />
+          </div>
+
+          <div className='lg:col-span-2 flex flex-col'>
+            {selectedDate ? (
+              <div className='flex-1 flex flex-col'>
+                <div className='flex justify-between items-center mb-4'>
+                  <h4 className='font-bold text-text-primary'>
+                    Datos del {selectedDate.toLocaleDateString('es-ES')}
+                  </h4>
+                  {historicalData.length > 0 && (
+                    <button onClick={handleDownloadHistorical} className='btn btn-primary text-sm py-1.5'>
+                      Descargar CSV
+                    </button>
+                  )}
+                </div>
+                
+                {isLoadingHistory ? (
+                  <div className='flex-1 flex justify-center items-center text-text-muted min-h-[300px]'>
+                    <div className='w-8 h-8 border-4 border-border-color border-t-accent rounded-full animate-spin'></div>
+                  </div>
+                ) : historicalData.length > 0 ? (
+                  <div className='flex-1 min-h-[300px] w-full bg-panel p-4 rounded-lg border border-border-color'>
+                    <ResponsiveContainer width='100%' height='100%'>
+                      <LineChart data={historicalData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' vertical={false} />
+                        <XAxis dataKey='time' stroke='#9ca3af' fontSize={10} tickMargin={10} minTickGap={30} />
+                        <YAxis yAxisId='left' stroke='#F29F67' fontSize={10} domain={['auto', 'auto']} />
+                        <YAxis yAxisId='right' orientation='right' stroke='#3B8FF3' fontSize={10} domain={[0, 100]} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1E1E2C', borderRadius: '8px', color: '#fff', fontSize: '12px', border: 'none' }} />
+                        <Legend iconType='circle' wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                        <Line yAxisId='left' type='monotone' dataKey='Temperatura' stroke='#F29F67' strokeWidth={2} dot={false} isAnimationActive={false} />
+                        <Line yAxisId='right' type='monotone' dataKey='Humedad' stroke='#3B8FF3' strokeWidth={2} dot={false} isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className='flex-1 flex justify-center items-center text-text-muted min-h-[300px] border-2 border-dashed border-border-color rounded-lg bg-app'>
+                    <p>No se encontraron datos para este día.</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className='flex-1 flex justify-center items-center text-text-muted border-2 border-dashed border-border-color rounded-lg bg-app min-h-[300px] p-6 text-center'>
+                <p>Selecciona una fecha en el calendario para visualizar su dataset histórico (telemetría procesada y almacenada en LittleFS).</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
