@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class', // Habilitar dark mode basado en clase CSS
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,19 +8,26 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Paleta Corporativa / Referencia
-        'navy-dark': '#1E1E2C',
-        'orange-accent': '#F29F67',
-        'blue-support': '#3B8FF3',
-        'teal-support': '#34B1AA',
-        'yellow-support': '#E0B50F',
-        // Fondos
-        'app-bg': '#F4F7F6',
-        'panel-bg': '#FFFFFF'
+        // Variables CSS inyectadas desde index.css
+        'app': 'var(--bg-app)',
+        'panel': 'var(--bg-panel)',
+        'border-color': 'var(--border-color)',
+        'primary': 'var(--color-primary)',
+        'primary-hover': 'var(--color-primary-hover)',
+        'accent': 'var(--color-accent)',
+        'accent-hover': 'var(--color-accent-hover)',
+        'danger': 'var(--color-danger)',
+        
+        // Mapeo semántico de textos
+        'text-primary': 'var(--text-primary)',
+        'text-secondary': 'var(--text-secondary)',
+        'muted': 'var(--text-muted)',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'], // Tipografía limpia para dashboards
-        mono: ['ui-monospace', 'SFMono-Regular', 'monospace'],
+        // Tipografía técnica e industrial (DM Sans)
+        sans: ['"DM Sans"', 'system-ui', 'sans-serif'], 
+        // Tipografía monoespaciada de código (JetBrains Mono)
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       }
     },
   },

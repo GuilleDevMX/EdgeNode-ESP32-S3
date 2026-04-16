@@ -1,0 +1,58 @@
+[   335][I][esp32-hal-psram.c:96] psramInit(): PSRAM enabled␍␊
+ESP-ROM:esp32s3-20210327␍␊
+Build:Mar 27 2021␍␊
+rst:0x15 (USB_UART_CHIP_RESET),boot:0xb (SPI_FAST_FLASH_BOOT)␍␊
+Saved PC:0x403819e5␍␊
+SPIWP:0xee␍␊
+mode:DIO, clock div:1␍␊
+load:0x3fce3808,len:0x4bc␍␊
+load:0x403c9700,len:0xbd8␍␊
+load:0x403cc700,len:0x2a0c␍␊
+entry 0x403c98d0␍␊
+[   335][I][esp32-hal-psram.c:96] psramInit(): PSRAM enabled␍␊
+[   379][E][vfs_api.cpp:105] open(): /littlefs/www/anomaly_net.tflite does not exist, no permits for creation␍␊
+[   388][W][AiManager.cpp:31] begin(): [AiManager] TinyML - Modelo inactivo. Esperando archivo .tflite via OTA.␍␊
+[   399][I][esp32-hal-i2c.c:75] i2cInit(): Initialising I2C Master: sda=8 scl=9 freq=100000␍␊
+[   407][W][Wire.cpp:301] begin(): Bus already started in Master Mode.␍␊
+[   441][I][NotificationManager.cpp:31] begin(): [NOTIF_MGR] NotificationManager inicializado␍␊
+[   451][I][main.cpp:110] init_system(): [EdgeSecOps] SYS - Perfil encontrado. Iniciando red.␍␊
+[   522][W][WiFiGeneric.cpp:1408] setTxPower(): Neither AP or STA has been started␍␊
+[   542][I][NetworkManager.cpp:123] connectToOperationalWiFi(): [EdgeSecOps] NET - Conectando a red operativa 'INFINITUM0516'...␍␊
+[  4553][I][NetworkManager.cpp:134] connectToOperationalWiFi(): [EdgeSecOps] NET - Conectado exitosamente. IP: 192.168.1.205␍␊
+[  4565][I][NetworkManager.cpp:168] initNTP(): [EdgeSecOps] SYS - NTP Server: time.google.com | TZ: CST6CDT,M4.1.0,M10.5.0␍␊
+[  4576][I][NetworkManager.cpp:138] connectToOperationalWiFi(): [EdgeSecOps] SYS - Esperando sincron<0xc3><0xad>a horaria NTP...␍␊
+[ 19587][E][NetworkManager.cpp:148] connectToOperationalWiFi(): [EdgeSecOps] SYS - TIMEOUT NTP: No se pudo obtener la hora.␍␊
+[ 19600][I][NetworkManager.cpp:152] connectToOperationalWiFi(): [EdgeSecOps] NET - mDNS Responder activo. Accesible en: http://edgenode.local␍␊
+[ 19612][I][main.cpp:120] init_system(): [EdgeSecOps] NET - Conexi<0xc3><0xb3>n exitosa. Levantando API.␍␊
+[ 19623][I][ApiServer.cpp:966] begin(): [ApiServer] SYS - API Web Server operativo. RBAC Zero-Trust + Headers de Seguridad Activos.␍␊
+[ 19635][I][main.cpp:124] init_system(): [EdgeSecOps] SYS - Red operativa lista. Cancelando Rollback si estaba pendiente.␍␊
+[ 30299][E][vfs_api.cpp:105] open(): /littlefs/www/assets/index.js.map.gz does not exist, no permits for creation␍␊
+[ 30358][E][vfs_api.cpp:105] open(): /littlefs/www/api/oobe/status.gz does not exist, no permits for creation␍␊
+[ 30370][E][vfs_api.cpp:105] open(): /littlefs/www/api/oobe/status does not exist, no permits for creation␍␊
+[ 30383][E][vfs_api.cpp:105] open(): /littlefs/www/api/oobe/status/index.html.gz does not exist, no permits for creation␍␊
+[ 30396][E][vfs_api.cpp:105] open(): /littlefs/www/api/oobe/status/index.html does not exist, no permits for creation␍␊
+[ 30410][E][vfs_api.cpp:105] open(): /littlefs/www/index.html does not exist, no permits for creation␍␊
+[ 30431][E][vfs_api.cpp:105] open(): /littlefs/www/index.html does not exist, no permits for creation␍␊
+[ 30468][E][vfs_api.cpp:105] open(): /littlefs/www/favicon.svg.gz does not exist, no permits for creation␍␊
+[ 40014][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 40021][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 40029][I][SecurityManager.cpp:235] authenticateUser(): [SecMgr] Auth OK: admin␍␊
+[ 40037][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 40044][I][ApiServer.cpp:347] operator()(): [ApiServer] IAM - Auth OK. User: admin | Rol: admin␍␊
+[ 40130][I][ApiServer.cpp:194] onWsEvent(): [ApiServer] WS - Cliente Conectado. ID: 1.␍␊
+[ 45702][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 45708][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 60580][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 71298][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 71304][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 71312][E][Preferences.cpp:483] getString(): nvs_get_str len fail: u_name_1 NOT_FOUND␍␊
+[ 71320][E][Preferences.cpp:483] getString(): nvs_get_str len fail: u_name_2 NOT_FOUND␍␊
+[ 71328][E][Preferences.cpp:483] getString(): nvs_get_str len fail: u_name_3 NOT_FOUND␍␊
+[ 71335][E][Preferences.cpp:483] getString(): nvs_get_str len fail: u_name_4 NOT_FOUND␍␊
+[ 74575][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 74581][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 82885][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 82891][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 82897][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 86914][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊
+[ 86920][E][Preferences.cpp:50] begin(): nvs_open failed: NOT_FOUND␍␊

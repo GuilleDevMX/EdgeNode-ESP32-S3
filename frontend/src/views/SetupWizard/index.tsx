@@ -1,3 +1,4 @@
+// src/views/SetupWizard/index.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 
 // =====================================================================

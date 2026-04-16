@@ -6,6 +6,7 @@
 #include <HTTPClient.h>
 #include <UrlEncode.h>
 #include <Preferences.h>
+#include <esp_check.h>
 
 static const char *TAG = "NOTIF_MGR";
 
@@ -24,10 +25,11 @@ void NotificationManager::smtpCallback(SMTP_Status status) {
     ESP_LOGI(TAG, "Estado SMTP: %s", status.info());
 }
 
-void NotificationManager::begin() {
+esp_err_t NotificationManager::begin() {
     MailClient.networkReconnect(true);
     smtp.callback(smtpCallback);
     ESP_LOGI(TAG, "NotificationManager inicializado");
+    return ESP_OK;
 }
 
 // --- Helpers para credenciales encriptadas ---

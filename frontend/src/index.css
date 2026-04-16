@@ -1,8 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Animación sutil para transiciones de vistas */
+@layer base {
+  :root {
+    /* Fondo principal de la app */
+    --bg-app: #F4F7F6;
+    /* Fondo de paneles / tarjetas */
+    --bg-panel: #FFFFFF;
+    /* Borde / Divisores */
+    --border-color: #E5E7EB;
+    
+    /* Textos */
+    --text-primary: #1E1E2C;
+    --text-secondary: #4B5563;
+    --text-muted: #9CA3AF;
+    
+    /* Acentos */
+    --color-primary: #1E1E2C;
+    --color-primary-hover: #374151;
+    --color-accent: #3B8FF3;
+    --color-accent-hover: #2563EB;
+    
+    /* Estados */
+    --color-success: #10B981;
+    --color-warning: #F59E0B;
+    --color-danger: #EF4444;
+    --color-info: #3B8FF3;
+  }
+
+  .dark {
+    /* Fondo principal de la app */
+    --bg-app: #0F172A;
+    /* Fondo de paneles / tarjetas */
+    --bg-panel: #1E293B;
+    /* Borde / Divisores */
+    --border-color: #334155;
+    
+    /* Textos */
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    
+    /* Acentos */
+    --color-primary: #F8FAFC;
+    --color-primary-hover: #CBD5E1;
+    --color-accent: #3B8FF3;
+    --color-accent-hover: #60A5FA;
+  }
+
+  body {
+    @apply bg-app text-primary font-sans antialiased transition-colors duration-300;
+  }
+}
+
 @layer utilities {
   .animate-fade-in {
     animation: fadeIn 0.3s ease-in-out;
@@ -12,4 +65,74 @@
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@layer components {
+  /* BOTONES UNIFICADOS */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-900 active:scale-[0.98];
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white dark:text-slate-900 hover:bg-primary-hover focus:ring-primary shadow-sm;
+  }
+  
+  .btn-secondary {
+    @apply bg-transparent border-2 border-border-color text-primary hover:bg-black/5 dark:hover:bg-white/5 focus:ring-gray-300;
+  }
+  
+  .btn-accent {
+    @apply bg-accent text-white hover:bg-accent-hover focus:ring-accent shadow-sm;
+  }
+  
+  .btn-danger {
+    @apply bg-danger text-white hover:bg-red-600 focus:ring-red-500 shadow-sm;
+  }
+  
+  .btn-danger-outline {
+    @apply bg-transparent border border-danger text-danger hover:bg-red-500/10 focus:ring-danger;
+  }
+  
+  /* TARJETAS UNIFICADAS */
+  .card {
+    @apply bg-panel border border-border-color rounded-xl shadow-sm transition-colors duration-300;
+  }
+  
+  /* INPUTS UNIFICADOS */
+  .input-field {
+    @apply w-full p-2.5 bg-app border border-border-color rounded-lg text-primary placeholder-muted focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all;
+  }
+  
+  .checkbox-field {
+    @apply w-4 h-4 text-accent bg-app border-border-color rounded focus:ring-accent dark:focus:ring-offset-slate-900;
+  }
+  
+  .label-field {
+    @apply block text-sm font-bold text-text-secondary mb-1.5;
+  }
+  
+  /* BADGES UNIFICADOS */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border;
+  }
+  
+  .badge-success {
+    @apply bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20;
+  }
+  
+  .badge-warning {
+    @apply bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20;
+  }
+  
+  .badge-danger {
+    @apply bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20;
+  }
+  
+  .badge-info {
+    @apply bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20;
+  }
+  
+  .badge-neutral {
+    @apply bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20;
+  }
 }
