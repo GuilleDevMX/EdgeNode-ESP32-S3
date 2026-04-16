@@ -166,7 +166,7 @@ esp_err_t NetworkManager::initNTP() {
     String tz = prefs.getString("tz", "CST6CDT,M4.1.0,M10.5.0"); 
     prefs.end();
     ESP_LOGI(TAG, "SYS - NTP Server: %s | TZ: %s", ntpServer.c_str(), tz.c_str());
-    configTzTime(tz.c_str(), ntpServer.c_str());
+    configTzTime(tz.c_str(), ntpServer.c_str(), "pool.ntp.org", "time.windows.com");
     return ESP_OK;
 }
 
@@ -174,7 +174,7 @@ esp_err_t NetworkManager::setupWebServerOOBE(AsyncWebServer* server) {
     server->on("/api/oobe/status", HTTP_GET, [](AsyncWebServerRequest *request) {
         bool isClaimed = SecMgr.isProvisioned();
         auto response = request->beginResponse(200, "application/json", 
-            "{\"is_claimed\":" + String(isClaimed ? "true" : "false") + "}");
+            "{\"is_provisioned\":" + String(isClaimed ? "true" : "false") + "}");
         addSecurityHeaders(response); 
         request->send(response);
     });

@@ -272,6 +272,14 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         return NetMgr.setupWebServerOOBE(&server);
     }
 
+    server.on("/api/oobe/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+        bool isClaimed = SecMgr.isProvisioned();
+        auto response = request->beginResponse(200, "application/json", 
+            "{\"is_provisioned\":" + String(isClaimed ? "true" : "false") + "}");
+        addSecurityHeaders(response); 
+        request->send(response);
+    });
+
     
     // ========================================================================
     // 1. DIAGNÓSTICO Y SALUD (Healthchecks)
@@ -640,10 +648,14 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
         if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
         
-        JsonDocument doc; prefs.begin("wifi", true); 
+        JsonDocument doc; 
+        prefs.begin("net", true); 
         doc["ssid"] = prefs.getString("ssid", ""); doc["dhcp"] = prefs.getBool("dhcp", true);
         doc["ip"] = prefs.getString("ip", "192.168.1.200"); doc["gateway"] = prefs.getString("gw", "192.168.1.1");
         doc["subnet"] = prefs.getString("sn", "255.255.255.0"); doc["dns"] = prefs.getString("dns", "8.8.8.8");
+        prefs.end();
+        
+        prefs.begin("wifi", true);
         doc["ap_ssid"] = prefs.getString("ap_ssid", ""); doc["ap_hide"] = prefs.getBool("ap_hide", false);
         doc["mdns"] = prefs.getString("mdns", "edgenode"); doc["ntp"] = prefs.getString("ntp", "time.google.com");
         doc["tz"] = prefs.getString("tz", "CST6CDT,M4.1.0,M10.5.0");
@@ -655,7 +667,8 @@ esp_err_t ApiServer::begin(bool oobeMode) {
 
     AsyncCallbackJsonWebHandler* netUpdateHandler = new AsyncCallbackJsonWebHandler("/api/config/network", [](AsyncWebServerRequest *request, JsonVariant &json) {
         if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401, "application/json", "{\"error\":\"No autorizado.\"}"); addSecurityHeaders(r); request->send(r); return; }
-        JsonObject data = json.as<JsonObject>(); prefs.begin("wifi", false);
+        JsonObject data = json.as<JsonObject>(); 
+        prefs.begin("net", false);
         if(data["ssid"].is<String>()) prefs.putString("ssid", data["ssid"].as<String>());
         if(data["pass"].is<String>()) { String p = data["pass"].as<String>(); if(p != "") prefs.putString("pass", p); }
         if(data["dhcp"].is<bool>()) prefs.putBool("dhcp", data["dhcp"].as<bool>());
@@ -663,6 +676,9 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(data["gateway"].is<String>()) prefs.putString("gw", data["gateway"].as<String>());
         if(data["subnet"].is<String>()) prefs.putString("sn", data["subnet"].as<String>());
         if(data["dns"].is<String>()) prefs.putString("dns", data["dns"].as<String>());
+        prefs.end();
+
+        prefs.begin("wifi", false);
         if(data["ap_ssid"].is<String>()) prefs.putString("ap_ssid", data["ap_ssid"].as<String>());
         if(data["ap_pass"].is<String>()) { String ap_p = data["ap_pass"].as<String>(); if(ap_p != "") prefs.putString("ap_pass", ap_p); }
         if(data["ap_hide"].is<bool>()) prefs.putBool("ap_hide", data["ap_hide"].as<bool>());
@@ -903,6 +919,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
         if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
         JsonDocument doc;
+        doc["flash_total"] = ESP.getFlashChipSize();
         doc["fs_total"] = LittleFS.totalBytes(); doc["fs_used"] = LittleFS.usedBytes();
         nvs_stats_t nvs_stats; esp_err_t err = nvs_get_stats(NULL, &nvs_stats);
         if (err == ESP_OK) { doc["nvs_total"] = nvs_stats.total_entries; doc["nvs_used"] = nvs_stats.used_entries; }

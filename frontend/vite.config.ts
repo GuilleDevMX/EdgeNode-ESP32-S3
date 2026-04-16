@@ -1,3 +1,4 @@
+// vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import viteCompression from 'vite-plugin-compression';
@@ -6,23 +7,26 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [
     react(),
-    // Hardening: Pre-compresión para LwIP. Ahorra RAM y CPU en el ESP32.
+    // Hardening DevSecOps: Pre-compresión estática. 
+    // El ESPAsyncWebServer enviará el header 'Content-Encoding: gzip' automáticamente.
     viteCompression({ 
       algorithm: 'gzip',
       ext: '.gz',
-      deleteOriginFile: true, // Eliminamos el original para ahorrar espacio en la Flash
-      threshold: 0            // Comprimir TODO
+      deleteOriginFile: true, // Borramos el .js/.css original para no ocupar el doble en la Flash
+      threshold: 0            // Comprimir absolutamente todo
     })
   ],
-  base: './', // CRÍTICO: Fuerza el uso de rutas relativas
+  base: './', // CRÍTICO: Fuerza rutas relativas para evitar errores 404 en el ESP32
   build: {
-    chunkSizeWarningLimit: 1000, // Aumenta el límite para evitar warnings con archivos grandes
-    // Redirige el build a la partición LittleFS del ESP32
+    sourcemap: true, // Lighthouse: generar source maps para facilitar el debugging
+    chunkSizeWarningLimit: 1500, // Elevamos el límite del warning de Vite
+    // Desplegamos directamente en la carpeta de PlatformIO
     outDir: resolve(__dirname, '../data/www'),
-    emptyOutDir: true, // Limpia el build anterior automáticamente
+    emptyOutDir: true, // Limpia el build anterior
     rollupOptions: {
       output: {
-        // Empaquetado monolítico: Reduce conexiones HTTP simultáneas
+        // Empaquetado Monolítico: Obligamos a Vite a generar 1 solo archivo JS y 1 CSS.
+        // Esto evita que el navegador haga 20 peticiones HTTP simultáneas al ESP32.
         manualChunks: undefined,
         entryFileNames: 'assets/[name].js',
         chunkFileNames: 'assets/[name].js',
