@@ -22,6 +22,16 @@ export default {
         'text-primary': 'var(--text-primary)',
         'text-secondary': 'var(--text-secondary)',
         'muted': 'var(--text-muted)',
+
+        // Sidebar / Aside
+        'aside': 'var(--bg-aside)',
+        'aside-primary': 'var(--text-primary-aside)',
+        'aside-secondary': 'var(--text-secondary-aside)',
+
+        // Support Colors
+        'teal-support': 'var(--bg-teal-support)',
+        'blue-support': 'var(--bg-blue-support)',
+        'orange-accent': 'var(--bg-orange-accent)',
       },
       fontFamily: {
         // Tipografía técnica e industrial (DM Sans)

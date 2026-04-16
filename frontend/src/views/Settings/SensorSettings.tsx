@@ -110,7 +110,7 @@ const SensorSettings = () => {
                   }
                   className="input-field rounded-l font-mono"
                 />
-                <span className="bg-gray-100 border border-l-0 border-border-color text-muted font-bold p-2 rounded-r flex items-center text-xs">
+                <span className="bg-app border border-l-0 border-border-color text-muted font-bold p-2 rounded-r flex items-center text-text-secondary">
                   ms
                 </span>
               </div>
@@ -218,7 +218,7 @@ const SensorSettings = () => {
                       temp_offset: parseFloat(e.target.value),
                     })
                   }
-                  className="w-full md:w-1/3 p-2 border border-border-color rounded focus:ring-2 focus:ring-blue-support focus:outline-none font-mono text-sm"
+                  className="input-field text-sm"
                 />
                 <p className="text-xs text-muted mt-1 mb-4">
                   Compensación por calor emitido por la placa ESP32.
@@ -239,7 +239,7 @@ const SensorSettings = () => {
                           adc_offset: parseFloat(e.target.value),
                         })
                       }
-                      className="w-full p-2 border rounded font-mono text-sm"
+                      className="input-field text-sm"
                     />
                     <p className="text-xs text-muted">
                       Ajuste fino de voltaje.
@@ -259,7 +259,7 @@ const SensorSettings = () => {
                           adc_mult: parseFloat(e.target.value),
                         })
                       }
-                      className="w-full p-2 border rounded font-mono text-sm"
+                      className="input-field text-sm"
                     />
                     <p className="text-xs text-muted">
                       Factor de corrección.
@@ -280,7 +280,7 @@ const SensorSettings = () => {
                           sleep_mode: parseInt(e.target.value),
                         })
                       }
-                      className="w-full p-2 border rounded font-mono text-sm"
+                      className="input-field text-sm"
                     >
                       <option value={0}>Siempre Encendido</option>
                       <option value={1}>Deep Sleep</option>
@@ -302,7 +302,7 @@ const SensorSettings = () => {
                           sleep_time: parseInt(e.target.value),
                         })
                       }
-                      className="w-full p-2 border rounded font-mono text-sm"
+                      className="input-field text-sm"
                     />
                   </div>
                 </div>

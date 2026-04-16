@@ -109,14 +109,14 @@ const FirmwareSettings = () => {
               <p className="font-bold text-text-primary">
                 {sysInfo.chip_model} ({sysInfo.cores} Cores)
               </p>
-              <p className="text-xs text-muted font-mono mt-1">
+              <p className="text-xs text-text-primary font-mono mt-1">
                 ESP-IDF: {sysInfo.sdk_version}
               </p>
             </div>
           </div>
 
           <div className="card p-4 shadow-sm flex items-start gap-3">
-            <div className="p-2 bg-orange-50 text-orange-accent rounded">
+            <div className="p-2 bg-orange-50 text-orange-600 rounded">
               <svg
                 className="w-6 h-6"
                 fill='none'
@@ -136,7 +136,7 @@ const FirmwareSettings = () => {
                 C++ Firmware
               </p>
               <p className="font-bold text-text-primary">{sysInfo.fw_version}</p>
-              <p className="text-xs text-muted font-mono mt-1">
+              <p className="text-xs text-text-primary font-mono mt-1">
                 Build: {sysInfo.build_date}
               </p>
             </div>
@@ -195,9 +195,9 @@ const FirmwareSettings = () => {
             </h4>
           </div>
 
-          <div className="border-2 border-dashed border-border-color rounded-lg p-8 text-center bg-panel hover:bg-gray-50 transition-colors cursor-pointer">
+          <div className="border-2 border-dashed border-border-color rounded-lg p-8 text-center bg-panel hover:bg-indigo-50/50 transition-colors cursor-pointer">
             <svg
-              className="mx-auto h-12 w-12 text-gray-400 mb-3"
+              className="mx-auto h-12 w-12 text-text-primary mb-3"
               fill='none'
               stroke='currentColor'
               viewBox='0 0 24 24'
@@ -209,10 +209,10 @@ const FirmwareSettings = () => {
                 d='M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
               ></path>
             </svg>
-            <p className="text-sm font-semibold text-gray-700">
+            <p className="text-sm font-semibold text-secondary">
               Arrastre aquí el archivo .bin del Firmware, LittleFS o .tflite
             </p>
-            <p className="text-xs text-muted mt-1">
+            <p className="text-xs text-text-primary mt-1">
               Soporta binarios de PlatformIO (firmware.bin, littlefs.bin)
             </p>
             <div className="mt-4 flex gap-2">
@@ -221,7 +221,7 @@ const FirmwareSettings = () => {
                 placeholder='https://...'
                 value={otaUrl}
                 onChange={(e) => setOtaUrl(e.target.value)}
-                className="flex-1 p-2 border border-border-color rounded font-mono text-sm outline-none focus:ring-2 focus:ring-teal-500"
+                className="input-field flex-1 p-2 border border-border-color rounded font-mono text-sm outline-none focus:ring-2 focus:ring-teal-500"
               />
               <button
                 onClick={handleOtaUpload}
@@ -241,7 +241,7 @@ const FirmwareSettings = () => {
                 Reinicio del Sistema
               </h4>
               <p className="text-sm text-text-secondary mt-1">
-                Fuerza un reinicio seguro (Soft Reset). Se desconectarán todos
+                Fuerza un reinicio seguro. Se desconectarán todos
                 los clientes de WebSocket temporalmente.
               </p>
             </div>
@@ -262,7 +262,7 @@ const FirmwareSettings = () => {
                   d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
                 ></path>
               </svg>
-              Reiniciar ESP32-S3
+              Reiniciar
             </button>
           </div>
         </section>

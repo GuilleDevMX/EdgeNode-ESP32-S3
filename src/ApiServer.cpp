@@ -240,15 +240,15 @@ void ApiServer::cleanup() {
 void writeAuditLog(String severity, String user, String action) {
     if (WiFi.status() != WL_CONNECTED) return; // Requerimos NTP
 
-    File file = LittleFS.open("/www/audit.csv", "a");
+    File file = LogFS.open("/audit.csv", "a");
     if (!file) return;
 
     // Rotación de logs (Máximo 50KB para no gastar la memoria flash)
     if (file.size() > 50 * 1024) {
         file.close();
-        LittleFS.remove("/www/audit_old.csv");
-        LittleFS.rename("/www/audit.csv", "/www/audit_old.csv");
-        file = LittleFS.open("/www/audit.csv", "w");
+        LogFS.remove("/audit_old.csv");
+        LogFS.rename("/audit.csv", "/audit_old.csv");
+        file = LogFS.open("/audit.csv", "w");
         file.println("timestamp,severity,user,action");
     } else if (file.size() == 0) {
         file.println("timestamp,severity,user,action");
@@ -551,14 +551,14 @@ esp_err_t ApiServer::begin(bool oobeMode) {
                 localtime_r(&now, &timeinfo);
                 char buf[30];
                 strftime(buf, sizeof(buf), "/dataset_%Y-%m-%d.csv", &timeinfo);
-                if (LittleFS.exists(buf)) {
+                if (LogFS.exists(buf)) {
                     fileName = String(buf);
                 }
             }
         }
 
-        if(LittleFS.exists(fileName.c_str())) {
-            auto r = request->beginResponse(LittleFS, fileName.c_str(), "text/csv", true); addSecurityHeaders(r); request->send(r);
+        if(LogFS.exists(fileName.c_str())) {
+            auto r = request->beginResponse(LogFS, fileName.c_str(), "text/csv", true); addSecurityHeaders(r); request->send(r);
         } else {
             auto r = request->beginResponse(200, "text/csv", "timestamp,temperature,humidity,battery_v\n"); addSecurityHeaders(r); request->send(r);
         }
@@ -571,7 +571,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         }
         
         JsonDocument doc; JsonArray files = doc.to<JsonArray>();
-        File root = LittleFS.open("/");
+        File root = LogFS.open("/");
         File file = root.openNextFile();
         while(file) {
             String name = file.name();
@@ -626,12 +626,12 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         String role = currentSessionRole; 
         if (role == "") { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
 
-        if(!LittleFS.exists("/www/audit.csv")) {
+        if(!LogFS.exists("/audit.csv")) {
             auto r = request->beginResponse(200, "application/json", "[]");
             addSecurityHeaders(r); request->send(r); return;
         }
 
-        File file = LittleFS.open("/www/audit.csv", "r");
+        File file = LogFS.open("/audit.csv", "r");
         JsonDocument doc; JsonArray logs = doc.to<JsonArray>();
         
         if (file) {
@@ -693,8 +693,8 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         }
 
         // Si la contraseña es correcta, borramos
-        LittleFS.remove("/www/audit.csv");
-        LittleFS.remove("/www/audit_old.csv");
+        LogFS.remove("/audit.csv");
+        LogFS.remove("/audit_old.csv");
         
         writeAuditLog("CRIT", "admin", "PURGA DE LOGS DE AUDITORÍA DEL SISTEMA");
         ESP_LOGW(TAG, "SYS - Logs de auditoría borrados por el Administrador.");
@@ -984,7 +984,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
         JsonDocument doc;
         doc["flash_total"] = ESP.getFlashChipSize();
-        doc["fs_total"] = LittleFS.totalBytes(); doc["fs_used"] = LittleFS.usedBytes();
+        doc["fs_total"] = LittleFS.totalBytes() + LogFS.totalBytes(); doc["fs_used"] = LittleFS.usedBytes() + LogFS.usedBytes();
         nvs_stats_t nvs_stats; esp_err_t err = nvs_get_stats(NULL, &nvs_stats);
         if (err == ESP_OK) { doc["nvs_total"] = nvs_stats.total_entries; doc["nvs_used"] = nvs_stats.used_entries; }
         else { doc["nvs_total"] = 0; doc["nvs_used"] = 0; }
@@ -1019,15 +1019,17 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         // Registrar la creación en la auditoría
         String logMsg = "Formato de logs solicitado.";
         writeAuditLog("INFO", "admin", logMsg);
-        File root = LittleFS.open("/");
+        File root = LogFS.open("/");
         File file = root.openNextFile();
         while(file) {
             String name = file.name();
             if (name.startsWith("dataset") && name.endsWith(".csv")) {
-                LittleFS.remove("/www/" + name);
+                LogFS.remove("/" + name);
             }
             file = root.openNextFile();
         }
+        LogFS.remove("/audit.csv");
+        LogFS.remove("/audit_old.csv");
         auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}"); addSecurityHeaders(r); request->send(r);
     });
 

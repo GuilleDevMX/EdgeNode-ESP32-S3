@@ -3,6 +3,9 @@
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <LittleFS.h>
+
+extern fs::LittleFSFS LogFS;
 
 class TelemetryManager {
 private:

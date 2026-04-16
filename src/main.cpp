@@ -37,6 +37,7 @@ void initSecureRNG();
 
 // --- INSTANCIACIÓN DE CLASES PRINCIPALES ---
 Preferences prefs;
+fs::LittleFSFS LogFS;
 
 void initSecureRNG() {
     uint32_t seed = esp_random() ^ (uint32_t)micros() ^ (uint32_t)(ESP.getEfuseMac() >> 32);
@@ -72,6 +73,9 @@ esp_err_t init_system() {
 
     // 2. LittleFS
     ESP_RETURN_ON_FALSE(LittleFS.begin(true), ESP_FAIL, TAG, "CRIT - Fallo montando LittleFS.");
+    
+    // LogFS para partición de logs y datasets
+    ESP_RETURN_ON_FALSE(LogFS.begin(true, "/logs", 10, "logs"), ESP_FAIL, TAG, "CRIT - Fallo montando LogFS.");
     
     // Inicializar TinyML
     ESP_RETURN_ON_ERROR(AiMgr.begin(), TAG, "Failed to init AI");

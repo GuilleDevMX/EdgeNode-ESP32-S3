@@ -313,7 +313,7 @@ const RedSettings = () => {
                         }
                         className="input-field rounded-l"
                       />
-                      <span className="bg-gray-200 border border-l-0 border-border-color text-muted p-2 rounded-r">
+                      <span className="bg-app border border-l-0 border-border-color text-muted font-bold p-2 rounded-r flex items-center text-text-secondary">
                         .local
                       </span>
                     </div>

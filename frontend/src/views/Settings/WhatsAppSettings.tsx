@@ -82,7 +82,7 @@ const WhatsAppSettings = () => {
                 }
                 className="checkbox-field"
               />
-              <span className="text-sm font-bold text-gray-700">
+              <span className="label-field">
                 Habilitar Alertas por WhatsApp
               </span>
             </label>

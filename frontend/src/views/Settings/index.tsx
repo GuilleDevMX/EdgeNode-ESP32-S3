@@ -17,17 +17,19 @@ const Settings = () => {
   return (
     <div className="space-y-6">
       <header>
-        <h2 className="text-2xl font-bold text-primary">Configuración del Nodo</h2>
-        <p className="text-secondary">Administra las alertas y parámetros de hardware.</p>
+        <h2 className="text-2xl font-bold text-text-primary">Configuración del Nodo</h2>
+        <p className="text-text-secondary mt-1">Administra las alertas y parámetros de hardware.</p>
       </header>
 
-      <div className="flex border-b border-border-color gap-6">
-        {['smtp', 'sensores', 'seguridad', 'nube', 'api', 'firmware', 'usuarios', 'whatsapp', 'datos', 'red'].map((tab) => (
+      <div className="flex border-b border-border-color gap-6 overflow-x-auto custom-scrollbar hide-scrollbar-mobile">
+        {['red', 'sensores', 'seguridad', 'nube', 'api', 'firmware', 'usuarios', 'whatsapp', 'datos', 'smtp'].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`pb-2 px-1 capitalize transition-all ${
-              activeTab === tab ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'
+            className={`pb-3 px-2 capitalize whitespace-nowrap transition-all border-b-2 font-medium ${
+              activeTab === tab 
+                ? 'border-accent text-accent' 
+                : 'border-transparent text-text-secondary hover:text-text-primary hover:border-border-color'
             }`}
           >
             {tab}

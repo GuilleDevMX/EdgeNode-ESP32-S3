@@ -94,7 +94,7 @@ void TelemetryManager::cleanupOldDatasets() {
     time(&now);
     if (now < 1600000000LL) return; // NTP not synced
     
-    File root = LittleFS.open("/");
+    File root = LogFS.open("/");
     if (!root || !root.isDirectory()) return;
 
     File file = root.openNextFile();
@@ -111,7 +111,7 @@ void TelemetryManager::cleanupOldDatasets() {
                 if (diff > retentionDays * 86400.0) {
                     ESP_LOGI(TAG, "FS - Borrando log antiguo: %s", fileName.c_str());
                     String fullPath = "/" + fileName;
-                    LittleFS.remove(fullPath.c_str());
+                    LogFS.remove(fullPath.c_str());
                 }
             }
         }
@@ -159,7 +159,7 @@ void TelemetryManager::dataLoggerTask(void *parameter) {
                 timeStampStr = String(millis() / 1000); 
             }
 
-            File file = LittleFS.open(fileName.c_str(), "a");
+            File file = LogFS.open(fileName.c_str(), "a");
             if (file) {
                 if (file.size() == 0) {
                     file.println("timestamp,temperature,humidity,battery_v");

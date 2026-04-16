@@ -105,13 +105,13 @@ const ApiSettings = () => {
               ></path>
             </svg>
             <h4 className="text-lg font-bold text-text-primary">
-              Tokens de Servicio M2M (Machine-to-Machine)
+              Tokens de Servicio M2M
             </h4>
           </div>
 
           <p className="text-sm text-text-secondary mb-6">
             Genere tokens estáticos de larga duración para integraciones automatizadas como
-            Dashboards (Grafana), flujos de Node-RED o scripts de Python.
+            Dashboards, flujos de Node-RED o scripts de Python.
           </p>
 
           <div className="card p-4 flex flex-col md:flex-row gap-4 items-end mb-6 shadow-sm">
@@ -159,7 +159,7 @@ const ApiSettings = () => {
 
           <div className="overflow-x-auto border border-border-color rounded">
             <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-gray-100 text-text-secondary border-b border-border-color">
+              <thead className="bg-app text-text-secondary border-b border-border-color">
                 <tr>
                   <th className="px-4 py-3 font-bold uppercase tracking-wider text-xs">
                     Integración
@@ -248,7 +248,7 @@ const ApiSettings = () => {
             </div>
             <div className="bg-yellow-50 text-yellow-800 border border-yellow-200 p-2 rounded text-xs overflow-x-auto">
               <span className="font-bold">Auth Header:</span>{' '}
-              <code className="bg-panel px-1 rounded whitespace-nowrap">
+              <code className="px-1 rounded whitespace-nowrap">
                 Authorization: Bearer &lt;TOKEN&gt;
               </code>
             </div>
@@ -437,7 +437,7 @@ const ApiSettings = () => {
                   {group.endpoints.map((ep, eIdx) => (
                     <div
                       key={eIdx}
-                      className="group flex flex-col lg:flex-row gap-4 items-start lg:items-center p-4 bg-app hover:bg-white rounded-lg border border-border-color shadow-sm transition-all hover:shadow-md"
+                      className="group flex flex-col lg:flex-row gap-4 items-start lg:items-center p-4 bg-app hover:bg-indigo-950/100  rounded-lg border border-border-color shadow-sm transition-all hover:shadow-md"
                     >
                       {/* Método y Ruta */}
                       <div className="flex items-center gap-3 w-full lg:w-64 shrink-0">
@@ -460,7 +460,7 @@ const ApiSettings = () => {
 
                       {/* Descripción y Payload */}
                       <div className="flex-1 flex flex-col gap-1 w-full min-w-0">
-                        <span className="text-sm text-gray-700 leading-tight">{ep.desc}</span>
+                        <span className="text-sm text-text-secondary leading-tight">{ep.desc}</span>
                         {ep.payload && (
                           <div className="mt-1 flex items-start gap-1">
                             <span className="text-[10px] font-bold text-gray-400 uppercase mt-0.5 shrink-0">

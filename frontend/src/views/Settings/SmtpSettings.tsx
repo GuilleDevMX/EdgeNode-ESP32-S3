@@ -205,7 +205,7 @@ const SmtpSettings = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Bloque Temperatura */}
-                  <div className="bg-orange-50 p-4 rounded border border-orange-100 flex flex-col justify-between">
+                  <div className="bg-app p-4 rounded border border-border-color flex flex-col justify-between">
                     <div>
                       <div className="flex justify-between items-center mb-2">
                         <label className="text-sm font-bold text-orange-800">
@@ -238,7 +238,7 @@ const SmtpSettings = () => {
                                 t_max: parseFloat(e.target.value),
                               })
                             }
-                            className="w-full p-1 border border-orange-200 rounded text-sm"
+                            className="input-field text-sm"
                           />
                         </div>
                         <div className="w-1/2">
@@ -255,7 +255,7 @@ const SmtpSettings = () => {
                                 t_min: parseFloat(e.target.value),
                               })
                             }
-                            className="w-full p-1 border border-orange-200 rounded text-sm"
+                            className="input-field text-sm"
                           />
                         </div>
                       </div>
@@ -263,8 +263,8 @@ const SmtpSettings = () => {
                   </div>
 
                   {/* Bloque Humedad */}
-                  <div className="bg-blue-50 p-4 rounded border border-blue-100 flex flex-col justify-between">
-                    <div>
+                    <div className="bg-app p-4 rounded border border-border-color flex flex-col justify-between">
+                      <div>
                       <div className="flex justify-between items-center mb-2">
                         <label className="text-sm font-bold text-blue-800">
                           Humedad (%)
@@ -296,7 +296,7 @@ const SmtpSettings = () => {
                                 h_max: parseFloat(e.target.value),
                               })
                             }
-                            className="w-full p-1 border border-blue-200 rounded text-sm"
+                            className="input-field text-sm"
                           />
                         </div>
                         <div className="w-1/2">
@@ -313,7 +313,7 @@ const SmtpSettings = () => {
                                 h_min: parseFloat(e.target.value),
                               })
                             }
-                            className="w-full p-1 border border-blue-200 rounded text-sm"
+                            className="input-field text-sm"
                           />
                         </div>
                       </div>

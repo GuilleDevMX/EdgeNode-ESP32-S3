@@ -264,10 +264,10 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className='bg-gray-900 p-5 rounded-lg shadow-sm text-white flex flex-col justify-between'>
+        <div className='bg-panel p-5 rounded-lg border-l-4 border-green-500 shadow-sm relative overflow-hidden group'>
           <div className='flex justify-between items-start'>
-            <p className='text-gray-400 text-sm font-semibold'>Estado ML</p>
-            <span className='text-xs font-mono text-gray-500'>Inferencia</span>
+            <p className='text-secondary text-sm font-semibold'>Estado ML</p>
+            <span className='text-xs font-mono text-text-secondary'>Inferencia</span>
           </div>
           <p className='text-sm font-bold text-blue-400 truncate mt-1'>
             {telemetry?.ml_inference_us ? (telemetry.ml_inference_us / 1000).toFixed(1) : '--'} ms
@@ -323,7 +323,7 @@ const Dashboard = () => {
         <div className='card p-5 flex flex-col'>
           <h4 className='text-sm font-bold text-text-secondary mb-4 border-b border-border-color pb-2 uppercase tracking-wider flex justify-between items-center'>
             <span>Dispersión Ambiental (TinyML View)</span>
-            <span className='text-[10px] text-text-muted font-normal normal-case'>Temp vs Humedad</span>
+            <span className='text-[10px] text-muted font-normal normal-case'>Temp vs Humedad</span>
           </h4>
           <div className='flex-1 min-h-[220px] w-full'>
             <ResponsiveContainer width='100%' height='100%'>
@@ -380,7 +380,7 @@ const Dashboard = () => {
                 </div>
                 
                 {isLoadingHistory ? (
-                  <div className='flex-1 flex justify-center items-center text-text-muted min-h-[300px]'>
+                  <div className='flex-1 flex justify-center items-center text-muted min-h-[300px]'>
                     <div className='w-8 h-8 border-4 border-border-color border-t-accent rounded-full animate-spin'></div>
                   </div>
                 ) : historicalData.length > 0 ? (
@@ -399,13 +399,13 @@ const Dashboard = () => {
                     </ResponsiveContainer>
                   </div>
                 ) : (
-                  <div className='flex-1 flex justify-center items-center text-text-muted min-h-[300px] border-2 border-dashed border-border-color rounded-lg bg-app'>
+                  <div className='flex-1 flex justify-center items-center text-muted min-h-[300px] border-2 border-dashed border-border-color rounded-lg bg-app'>
                     <p>No se encontraron datos para este día.</p>
                   </div>
                 )}
               </div>
             ) : (
-              <div className='flex-1 flex justify-center items-center text-text-muted border-2 border-dashed border-border-color rounded-lg bg-app min-h-[300px] p-6 text-center'>
+              <div className='flex-1 flex justify-center items-center text-muted border-2 border-dashed border-border-color rounded-lg bg-app min-h-[300px] p-6 text-center'>
                 <p>Selecciona una fecha en el calendario para visualizar su dataset histórico (telemetría procesada y almacenada en LittleFS).</p>
               </div>
             )}

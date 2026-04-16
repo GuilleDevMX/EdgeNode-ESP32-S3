@@ -141,27 +141,33 @@ const DataSettings = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* LittleFS Bar */}
             <div>
+              {storageMetrics.flash_total && (
               <div className="flex justify-between text-sm font-semibold text-text-secondary mb-2">
                 <span>Partición: spiffs / LittleFS</span>
                 <span>
+
                   {(storageMetrics.fs_used / (1024 * 1024)).toFixed(2)} MB /{' '}
-                  {(storageMetrics.fs_total / (1024 * 1024)).toFixed(2)} MB (
-                  {storageMetrics.fs_total > 0
+                  {(storageMetrics.flash_total / (1024 * 1024)).toFixed(2)} MB (
+                  {storageMetrics.flash_total > 0
                     ? Math.round(
-                        (storageMetrics.fs_used / storageMetrics.fs_total) *
-                          100,
-                      )
+                      (storageMetrics.fs_used / storageMetrics.flash_total) *
+                      100,
+                    )
                     : 0}
                   %)
                 </span>
               </div>
+              )}
               <div className="w-full bg-gray-200 rounded-full h-3">
+                {storageMetrics.flash_total && (
                 <div
-                  className="bg-teal-support h-3 rounded-full transition-all duration-1000"
-                  style={{
-                    width: `${storageMetrics.fs_total > 0 ? (storageMetrics.fs_used / storageMetrics.fs_total) * 100 : 0}%`,
-                  }}
+
+                className="bg-teal-support h-3 rounded-full transition-all duration-1000"
+                style={{
+                  width: `${storageMetrics.flash_total > 0 ? (storageMetrics.fs_used / storageMetrics.flash_total) * 100 : 0}%`,
+                }}
                 ></div>
+                )}
               </div>
               <p className="text-xs text-muted mt-2">
                 Aloja el binario de esta SPA React, assets y los logs de
@@ -302,7 +308,7 @@ const DataSettings = () => {
         </section>
 
         {/* 4. ZONA DE PELIGRO (Acciones Destructivas) */}
-        <section className="bg-red-50 p-6 rounded-lg border border-red-200">
+        <section className="card p-6 border-red-200">
           <div className="flex items-center gap-2 mb-4 border-b border-red-200 pb-2">
             <svg
               className="w-5 h-5 text-red-600"
@@ -318,12 +324,12 @@ const DataSettings = () => {
               ></path>
             </svg>
             <h4 className="text-lg font-bold text-red-800">
-              Zona de Peligro (Acciones Destructivas)
+              Zona de Peligro: Acciones Destructivas
             </h4>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-panel p-4 rounded border border-red-100 flex flex-col justify-between">
+            <div className="card p-4">
               <div>
                 <h5 className="font-bold text-text-primary">
                   Purgar Historial de Telemetría
@@ -342,7 +348,7 @@ const DataSettings = () => {
               </button>
             </div>
 
-            <div className="bg-panel p-4 rounded border border-red-100 flex flex-col justify-between">
+            <div className="card p-4">
               <div>
                 <h5 className="font-bold text-text-primary">
                   Factory Reset (Zero-Trust)
