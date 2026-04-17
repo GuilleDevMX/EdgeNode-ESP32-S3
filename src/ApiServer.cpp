@@ -1077,6 +1077,52 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}"); addSecurityHeaders(r); request->send(r);
     });
 
+    // --- ENDPOINT: DASHBOARD UI PREFERENCES ---
+    server.on("/api/config/dashboard", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
+        if(!isAuthorized(request, "viewer")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
+        JsonDocument doc; prefs.begin("sen", true);
+        JsonArray zones = doc["zones"].to<JsonArray>();
+        const char* defaultColors[] = {"#F87171", "#FBBF24", "#34D399", "#60A5FA", "#A78BFA"};
+        for(int i = 0; i < 5; i++) {
+            JsonObject z = zones.add<JsonObject>();
+            String nameKey = "z" + String(i) + "_name";
+            String colKey = "z" + String(i) + "_col";
+            String ltypeKey = "z" + String(i) + "_lty";
+            String dashKey = "z" + String(i) + "_dash";
+            String dotKey = "z" + String(i) + "_dot";
+            z["name"] = prefs.getString(nameKey.c_str(), "Zona " + String(i+1));
+            z["color"] = prefs.getString(colKey.c_str(), defaultColors[i]);
+            z["lineType"] = prefs.getString(ltypeKey.c_str(), "monotone");
+            z["strokeDasharray"] = prefs.getString(dashKey.c_str(), "");
+            z["dot"] = prefs.getBool(dotKey.c_str(), false);
+        }
+        prefs.end();
+        String response; serializeJson(doc, response);
+        auto r = request->beginResponse(200, "application/json", response); addSecurityHeaders(r); request->send(r);
+    });
+
+    AsyncCallbackJsonWebHandler* uiUpdateHandler = new AsyncCallbackJsonWebHandler("/api/config/dashboard", [](AsyncWebServerRequest *request, JsonVariant &json) {
+        if(!isAuthorized(request, "operator")) { auto r = request->beginResponse(401, "application/json", "{\"error\":\"No autorizado.\"}"); addSecurityHeaders(r); request->send(r); return; }
+        JsonObject data = json.as<JsonObject>(); prefs.begin("sen", false);
+        if (data["zones"].is<JsonArray>()) {
+            JsonArray zones = data["zones"].as<JsonArray>();
+            int i = 0;
+            for (JsonVariant z_var : zones) {
+                if (i >= 5) break;
+                JsonObject z = z_var.as<JsonObject>();
+                if (z["name"].is<String>()) prefs.putString(("z" + String(i) + "_name").c_str(), z["name"].as<String>());
+                if (z["color"].is<String>()) prefs.putString(("z" + String(i) + "_col").c_str(), z["color"].as<String>());
+                if (z["lineType"].is<String>()) prefs.putString(("z" + String(i) + "_lty").c_str(), z["lineType"].as<String>());
+                if (z["strokeDasharray"].is<String>()) prefs.putString(("z" + String(i) + "_dash").c_str(), z["strokeDasharray"].as<String>());
+                if (z["dot"].is<bool>()) prefs.putBool(("z" + String(i) + "_dot").c_str(), z["dot"].as<bool>());
+                i++;
+            }
+        }
+        prefs.end();
+        auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}"); addSecurityHeaders(r); request->send(r);
+    }); server.addHandler(uiUpdateHandler);
+
     ESP_RETURN_ON_ERROR(NetMgr.setupOTAEndpoints(&server), TAG, "Failed to setup OTA endpoints");
 
     // ========================================================================

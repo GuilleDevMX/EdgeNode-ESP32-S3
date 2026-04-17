@@ -46,7 +46,7 @@ Este documento detalla las APIs nativas de ESP-IDF que se implementarán progres
   - [x] **Dashboard Operacional:**
     - [x] Cambiar las *StatCards* individuales a un "Grid Multi-Zonas" o tarjetas colapsables.
     - [x] Soportar multi-línea en los gráficos de Recharts con una leyenda interactiva (ej. colores distintos para cada sensor y opción de ocultar líneas con clic).
-    - [ ] **Personalización de Gráficos:** Permitir al usuario nombrar las zonas (ej. "Rack Servidores"), elegir el color, tipo de línea (sólida, punteada) y el estilo de los puntos de medición en las gráficas.
-    - [ ] **Zoom Interactivo:** Incorporar funcionalidad de zoom y barrido (*pan*) a las gráficas del Dashboard (vivo e histórico) para análisis minucioso de la telemetría.
+    - [x] **Personalización de Gráficos:** Permitir al usuario nombrar las zonas (ej. "Rack Servidores"), elegir el color, tipo de línea (sólida, punteada) y el estilo de los puntos de medición en las gráficas.
+    - [x] **Zoom Interactivo:** Incorporar funcionalidad de zoom y barrido (*pan*) a las gráficas del Dashboard (vivo e histórico) para análisis minucioso de la telemetría.
   - [x] **Settings:** Rediseñar `SensorSettings.tsx` utilizando un acordeón o lista detallada para ajustar pines y compensaciones (*offsets*) para los 5 sensores de forma independiente.
   - **Notificaciones & Lógica:** Modificar `NotificationManager` para indicar **cuál** de los 5 sensores superó el umbral.

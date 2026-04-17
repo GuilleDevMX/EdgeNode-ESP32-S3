@@ -12,6 +12,7 @@ import {
   ScatterChart,
   Scatter,
   ZAxis,
+  Brush,
 } from 'recharts';
 
 import Loader from '../components/Loader';
@@ -21,10 +22,61 @@ import 'react-day-picker/style.css';
 import { apiFetch } from '../api/client';
 import toast from 'react-hot-toast';
 
-const COLORS = ['#F87171', '#FBBF24', '#34D399', '#60A5FA', '#A78BFA'];
+
+
+
+export interface ZonePref {
+  name: string;
+  color: string;
+  lineType: 'monotone' | 'linear' | 'step';
+  strokeDasharray: string;
+  dot: boolean;
+}
+
+const DEFAULT_PREFS: ZonePref[] = [
+  { name: 'Zona 1', color: '#F87171', lineType: 'monotone', strokeDasharray: '', dot: false },
+  { name: 'Zona 2', color: '#FBBF24', lineType: 'monotone', strokeDasharray: '', dot: false },
+  { name: 'Zona 3', color: '#34D399', lineType: 'monotone', strokeDasharray: '', dot: false },
+  { name: 'Zona 4', color: '#60A5FA', lineType: 'monotone', strokeDasharray: '', dot: false },
+  { name: 'Zona 5', color: '#A78BFA', lineType: 'monotone', strokeDasharray: '', dot: false },
+];
 
 const Dashboard = () => {
   const [timeWindow, setTimeWindow] = useState<number>(60);
+  const [zonePrefs, setZonePrefs] = useState<ZonePref[]>(() => {
+    const saved = localStorage.getItem('dashboard_zone_prefs');
+    return saved ? JSON.parse(saved) : DEFAULT_PREFS;
+  });
+  const [showSettings, setShowSettings] = useState(false);
+
+  const [isSavingPrefs, setIsSavingPrefs] = useState(false);
+
+  const handleSavePrefs = async () => {
+    setIsSavingPrefs(true);
+    try {
+      const res = await apiFetch('/api/config/dashboard', {
+        method: 'POST',
+        body: JSON.stringify({ zones: zonePrefs })
+      });
+      if (res.ok) {
+        toast.success('Preferencias guardadas en el backend.');
+      } else {
+        toast.error('Error al guardar preferencias.');
+      }
+    } catch (e) {
+      toast.error('Error de red al guardar.');
+    } finally {
+      setIsSavingPrefs(false);
+    }
+  };
+
+  const updateZonePref = (index: number, key: keyof ZonePref, value: any) => {
+    const newPrefs = [...zonePrefs];
+    newPrefs[index] = { ...newPrefs[index], [key]: value };
+    setZonePrefs(newPrefs);
+    localStorage.setItem('dashboard_zone_prefs', JSON.stringify(newPrefs));
+  };
+
   
   const { data: telemetry, status } = useTelemetryContext();
   const [chartData, setChartData] = useState<any[]>([]);
@@ -42,6 +94,17 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
+    // Cargar preferencias del backend
+    apiFetch('/api/config/dashboard')
+      .then(res => res.json())
+      .then(data => {
+        if (data.zones && Array.isArray(data.zones)) {
+          setZonePrefs(data.zones);
+          localStorage.setItem('dashboard_zone_prefs', JSON.stringify(data.zones));
+        }
+      })
+      .catch(() => {});
+
     // Cargar fechas disponibles
     apiFetch('/api/datasets')
       .then(res => res.json())
@@ -272,15 +335,52 @@ const Dashboard = () => {
           <svg className='w-5 h-5 text-blue-600' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z'></path></svg>
           Centro de Inteligencia Operacional
         </h3>
-        <div className='flex items-center gap-2 text-sm font-semibold'>
-          <span className='text-secondary'>Ventana de Análisis:</span>
+        <div className='flex items-center gap-4'>
+          <button onClick={() => setShowSettings(!showSettings)} className='btn btn-secondary text-sm py-1 px-3 flex items-center gap-2'>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            Gráficos
+          </button>
+          <div className='flex items-center gap-2 text-sm font-semibold'>
+            <span className='text-secondary'>Ventana:</span>
           <select value={timeWindow} onChange={(e) => setTimeWindow(Number(e.target.value))} className='input-field'>
             <option value={60}>Últimos 5 Minutos</option>
             <option value={180}>Últimos 15 Minutos</option>
             <option value={360}>Últimos 30 Minutos</option>
           </select>
         </div>
+        </div>
       </div>
+
+
+      {showSettings && (
+        <div className='bg-panel p-4 rounded-lg border border-border-color shadow-sm mb-4 animate-fade-in'>
+          <div className='flex justify-between items-center mb-3'>
+            <h4 className='text-sm font-bold text-primary'>Personalización de Gráficos (Zonas)</h4>
+            <button onClick={handleSavePrefs} disabled={isSavingPrefs} className='btn btn-primary text-xs py-1 px-3'>
+              {isSavingPrefs ? 'Guardando...' : 'Guardar en Servidor'}
+            </button>
+          </div>
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4'>
+            {[0, 1, 2, 3, 4].map(id => (
+              <div key={`pref-${id}`} className='space-y-2 border border-border-color p-3 rounded bg-app'>
+                <input type='text' value={zonePrefs[id].name} onChange={e => updateZonePref(id, 'name', e.target.value)} className='input-field text-sm font-bold w-full' placeholder={`Zona ${id+1}`} />
+                <div className='flex items-center gap-2'>
+                  <input type='color' value={zonePrefs[id].color} onChange={e => updateZonePref(id, 'color', e.target.value)} className='w-8 h-8 rounded cursor-pointer shrink-0 border-0 p-0' />
+                  <select value={zonePrefs[id].lineType} onChange={e => updateZonePref(id, 'lineType', e.target.value as any)} className='input-field text-xs flex-1'>
+                    <option value='monotone'>Curva</option>
+                    <option value='linear'>Recta</option>
+                    <option value='step'>Escalón</option>
+                  </select>
+                </div>
+                <div className='flex items-center justify-between text-xs text-text-secondary'>
+                  <label className='flex items-center gap-1 cursor-pointer'><input type='checkbox' checked={zonePrefs[id].strokeDasharray === '5 5'} onChange={e => updateZonePref(id, 'strokeDasharray', e.target.checked ? '5 5' : '')} /> Punteada</label>
+                  <label className='flex items-center gap-1 cursor-pointer'><input type='checkbox' checked={zonePrefs[id].dot} onChange={e => updateZonePref(id, 'dot', e.target.checked)} /> Puntos</label>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* GRID MULTI-ZONAS */}
       <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4'>
@@ -288,7 +388,7 @@ const Dashboard = () => {
             const sensor = telemetry?.sensors?.find((s: any) => s.id === id);
             return (
               <div key={id} className='bg-panel p-4 rounded-lg border border-border-color shadow-sm flex flex-col justify-between hover:border-accent transition-colors'>
-                <p className='text-xs font-bold text-text-secondary uppercase mb-2'>Zona {id + 1}</p>
+                <p className='text-xs font-bold text-text-secondary uppercase mb-2'>{zonePrefs[id].name}</p>
                 <div className='flex justify-between items-end gap-2'>
                     <div className='flex flex-col'>
                         <span className='text-[10px] text-muted font-bold'>TEMP</span>
@@ -381,11 +481,12 @@ const Dashboard = () => {
                 <Legend iconType='circle' wrapperStyle={{ fontSize: '12px', paddingTop: '10px', cursor: 'pointer' }} onClick={handleLegendClick} />
                 
                 {[0, 1, 2, 3, 4].map(id => (
-                    <Line key={`T${id}`} hide={hiddenLines[`T${id}`]} yAxisId='left' name={`Temp Z${id+1}`} type='monotone' dataKey={`T${id}`} stroke={COLORS[id]} strokeWidth={2} dot={false} isAnimationActive={false} />
+                    <Line key={`T${id}`} hide={hiddenLines[`T${id}`]} yAxisId='left' name={`${zonePrefs[id].name} (T)`} type={zonePrefs[id].lineType} dataKey={`T${id}`} stroke={zonePrefs[id].color} strokeDasharray={zonePrefs[id].strokeDasharray} strokeWidth={2} dot={zonePrefs[id].dot} isAnimationActive={false} />
                 ))}
                 {[0, 1, 2, 3, 4].map(id => (
-                    <Line key={`H${id}`} hide={hiddenLines[`H${id}`]} yAxisId='right' name={`Hum Z${id+1}`} type='monotone' strokeDasharray="5 5" dataKey={`H${id}`} stroke={COLORS[id]} strokeWidth={2} dot={false} isAnimationActive={false} />
+                    <Line key={`H${id}`} hide={hiddenLines[`H${id}`]} yAxisId='right' name={`${zonePrefs[id].name} (H)`} type={zonePrefs[id].lineType} strokeDasharray={zonePrefs[id].strokeDasharray || "5 5"} dataKey={`H${id}`} stroke={zonePrefs[id].color} strokeWidth={2} dot={zonePrefs[id].dot} opacity={0.6} isAnimationActive={false} />
                 ))}
+                <Brush dataKey="time" height={30} stroke="#3B8FF3" fill="#1E1E2C" travellerWidth={10} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -403,6 +504,7 @@ const Dashboard = () => {
                 <YAxis stroke='#8B5CF6' fontSize={10} domain={[3.0, 4.3]} tickCount={6} />
                 <Tooltip contentStyle={{ backgroundColor: '#1E1E2C', borderRadius: '8px', color: '#fff', fontSize: '12px', border: 'none' }} formatter={(value: any) => [`${Number(value || 0).toFixed(2)} V`, 'Voltaje']} />
                 <Line type='monotone' dataKey='Voltaje' name='Voltaje Batería' stroke='#8B5CF6' strokeWidth={2} dot={false} activeDot={{ r: 5, fill: '#8B5CF6' }} isAnimationActive={false} />
+                <Brush dataKey="time" height={30} stroke="#8B5CF6" fill="#1E1E2C" travellerWidth={10} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -488,11 +590,12 @@ const Dashboard = () => {
                         <Legend iconType='circle' wrapperStyle={{ fontSize: '12px', paddingTop: '10px', cursor: 'pointer' }} onClick={handleLegendClick} />
                         
                         {[0, 1, 2, 3, 4].map(id => (
-                            <Line key={`T${id}`} hide={hiddenLines[`T${id}`]} yAxisId='left' name={`Temp Z${id+1}`} type='monotone' dataKey={`T${id}`} stroke={COLORS[id]} strokeWidth={2} dot={false} isAnimationActive={false} />
+                            <Line key={`T${id}`} hide={hiddenLines[`T${id}`]} yAxisId='left' name={`${zonePrefs[id].name} (T)`} type={zonePrefs[id].lineType} dataKey={`T${id}`} stroke={zonePrefs[id].color} strokeDasharray={zonePrefs[id].strokeDasharray} strokeWidth={2} dot={zonePrefs[id].dot} isAnimationActive={false} />
                         ))}
                         {[0, 1, 2, 3, 4].map(id => (
-                            <Line key={`H${id}`} hide={hiddenLines[`H${id}`]} yAxisId='right' name={`Hum Z${id+1}`} type='monotone' strokeDasharray="5 5" dataKey={`H${id}`} stroke={COLORS[id]} strokeWidth={2} dot={false} isAnimationActive={false} />
+                            <Line key={`H${id}`} hide={hiddenLines[`H${id}`]} yAxisId='right' name={`${zonePrefs[id].name} (H)`} type={zonePrefs[id].lineType} strokeDasharray={zonePrefs[id].strokeDasharray || "5 5"} dataKey={`H${id}`} stroke={zonePrefs[id].color} strokeWidth={2} dot={zonePrefs[id].dot} opacity={0.6} isAnimationActive={false} />
                         ))}
+                        <Brush dataKey="time" height={30} stroke="#F29F67" fill="#1E1E2C" travellerWidth={10} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
