@@ -245,8 +245,13 @@ esp_err_t NetworkManager::setupWebServerOOBE(AsyncWebServer* server) {
     server->onNotFound([](AsyncWebServerRequest *request) {
         if (request->method() == HTTP_OPTIONS) { request->send(200); } 
         else {
-            auto response = request->beginResponse(LittleFS, "/www/index.html", "text/html");
-            addSecurityHeaders(response); request->send(response);
+            if(LittleFS.exists("/www/index.html") || LittleFS.exists("/www/index.html.gz")) {
+                auto response = request->beginResponse(LittleFS, "/www/index.html", "text/html");
+                addSecurityHeaders(response); request->send(response);
+            } else {
+                auto response = request->beginResponse(404, "text/html", "<h1>404 - Frontend No Instalado</h1><p>El servidor web local del ESP32 funciona, pero la aplicacion React no se encuentra en LittleFS.</p><p>Ejecute <b>pio run -t uploadfs</b> para instalar la interfaz.</p>");
+                addSecurityHeaders(response); request->send(response);
+            }
         }
     });
 

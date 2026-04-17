@@ -37,7 +37,7 @@ public:
     void syncDataToCloud(String jsonPayload);
     
     // Casos de uso específicos (Disparadores)
-    void checkSensorThresholds(float temp, float hum, float battery);
+    void checkSensorThresholds(float temp[5], float hum[5], float battery);
     void sendSecurityAlert(const String& eventDescription);
     void sendRecoveryToken(const String& adminEmail, const String& recoveryToken);
 };

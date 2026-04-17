@@ -170,7 +170,7 @@ void NotificationManager::syncDataToCloud(String jsonPayload) {
 // MOTORES DE EVALUACIÓN Y DISPARO
 // =========================================================================
 
-void NotificationManager::checkSensorThresholds(float temp, float hum, float battery) {
+void NotificationManager::checkSensorThresholds(float temps[5], float hums[5], float battery) {
     if (WiFi.getMode() != WIFI_STA || WiFi.status() != WL_CONNECTED) return;
     
     Preferences prefs;
@@ -190,23 +190,29 @@ void NotificationManager::checkSensorThresholds(float temp, float hum, float bat
     
     // 1. TEMPERATURA
     if (a_temp && (now - lastTempAlertTime > cooldown_ms || lastTempAlertTime == 0)) {
-        if (temp > t_max) {
-            String emailMsg = "<b>🔥 ALERTA TÉRMICA: SOBRECALENTAMIENTO</b><br><br>El sensor registró <b>" + String(temp, 1) + " °C</b>.";
-            String waMsg = "🔥 ALERTA TÉRMICA\nEl sensor registró " + String(temp, 1) + " °C, superando el máximo de " + String(t_max, 1) + " °C.";
-            
-            sendWhatsAppAlert(waMsg); // Dispara WhatsApp
-            if(sendEmail("🔥 ALERTA: Alta Temperatura", emailMsg)) lastTempAlertTime = now;
+        for (int i = 0; i < 5; i++) {
+            if (!isnan(temps[i]) && temps[i] > t_max) {
+                String emailMsg = "<b>🔥 ALERTA TÉRMICA: SOBRECALENTAMIENTO</b><br><br>El sensor " + String(i) + " registró <b>" + String(temps[i], 1) + " °C</b>.";
+                String waMsg = "🔥 ALERTA TÉRMICA\nEl sensor " + String(i) + " registró " + String(temps[i], 1) + " °C, superando el máximo de " + String(t_max, 1) + " °C.";
+                
+                sendWhatsAppAlert(waMsg); // Dispara WhatsApp
+                if(sendEmail("🔥 ALERTA: Alta Temperatura", emailMsg)) lastTempAlertTime = now;
+                break;
+            }
         }
     }
     
     // 2. HUMEDAD
     if (a_hum && (now - lastHumAlertTime > cooldown_ms || lastHumAlertTime == 0)) {
-        if (hum > h_max) {
-            String emailMsg = "<b>💧 ALERTA: EXCESO DE HUMEDAD</b><br><br>Se registró <b>" + String(hum, 1) + " %</b>.";
-            String waMsg = "💧 ALERTA DE HUMEDAD\nSe registró " + String(hum, 1) + " %, superando el límite de " + String(h_max, 1) + " %.";
-            
-            sendWhatsAppAlert(waMsg);
-            if(sendEmail("💧 ALERTA: Humedad Peligrosa", emailMsg)) lastHumAlertTime = now;
+        for (int i = 0; i < 5; i++) {
+            if (!isnan(hums[i]) && hums[i] > h_max) {
+                String emailMsg = "<b>💧 ALERTA: EXCESO DE HUMEDAD</b><br><br>El sensor " + String(i) + " registró <b>" + String(hums[i], 1) + " %</b>.";
+                String waMsg = "💧 ALERTA DE HUMEDAD\nEl sensor " + String(i) + " registró " + String(hums[i], 1) + " %, superando el límite de " + String(h_max, 1) + " %.";
+                
+                sendWhatsAppAlert(waMsg);
+                if(sendEmail("💧 ALERTA: Humedad Peligrosa", emailMsg)) lastHumAlertTime = now;
+                break;
+            }
         }
     }
     

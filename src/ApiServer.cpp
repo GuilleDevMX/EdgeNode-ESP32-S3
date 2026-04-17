@@ -591,6 +591,27 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         auto r = request->beginResponse(200, "application/json", response); addSecurityHeaders(r); request->send(r);
     });
 
+    server.on("/api/dataset", HTTP_DELETE, [](AsyncWebServerRequest *request){
+        if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
+        if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401, "application/json", "{\"error\":\"No autorizado.\"}"); addSecurityHeaders(r); request->send(r); return; }
+        
+        if(!request->hasParam("date")) {
+            auto r = request->beginResponse(400, "application/json", "{\"error\":\"Falta parámetro date.\"}"); addSecurityHeaders(r); request->send(r); return;
+        }
+        
+        String dateParam = request->getParam("date")->value();
+        String fileName = (dateParam == "today") ? "/dataset.csv" : ("/dataset_" + dateParam + ".csv");
+        
+        if(LogFS.exists(fileName.c_str())) {
+            LogFS.remove(fileName.c_str());
+            String logMsg = "Dataset eliminado: " + fileName;
+            writeAuditLog("INFO", "admin", logMsg);
+            auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}"); addSecurityHeaders(r); request->send(r);
+        } else {
+            auto r = request->beginResponse(404, "application/json", "{\"error\":\"Archivo no encontrado.\"}"); addSecurityHeaders(r); request->send(r);
+        }
+    });
+
     server.on("/api/config/storage", HTTP_GET, [](AsyncWebServerRequest *request) {
         if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
         if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
@@ -805,10 +826,22 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
         if(!isAuthorized(request, "operator")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
         JsonDocument doc; prefs.begin("sen", true);
-        doc["dht_pin"] = prefs.getInt("dht_pin", 4); doc["dht_type"] = prefs.getInt("dht_type", 22);
+        
+        JsonArray sensors = doc["sensors"].to<JsonArray>();
+        int defaultPins[5] = {4, 15, 16, 17, 18};
+        for(int i = 0; i < 5; i++) {
+            JsonObject s = sensors.add<JsonObject>();
+            String pinKey = "dht_pin_" + String(i);
+            String typeKey = "dht_type_" + String(i);
+            String offKey = "t_off_" + String(i);
+            s["pin"] = prefs.getInt(pinKey.c_str(), defaultPins[i]);
+            s["type"] = prefs.getInt(typeKey.c_str(), 22);
+            s["t_off"] = prefs.getFloat(offKey.c_str(), -0.5);
+        }
+        
         doc["adc_pin"] = prefs.getInt("adc_pin", 5); doc["adc_gnd_pin"] = prefs.getInt("adc_gnd_pin", -1);
         doc["r1"] = prefs.getFloat("r1", 100000.0);
-        doc["r2"] = prefs.getFloat("r2", 100000.0); doc["temp_offset"] = prefs.getFloat("t_off", -0.5);
+        doc["r2"] = prefs.getFloat("r2", 100000.0); 
         doc["adc_offset"] = prefs.getFloat("adc_off", 0.0); doc["adc_mult"] = prefs.getFloat("adc_mult", 1.0);
         doc["sleep_mode"] = prefs.getInt("slp_mode", 0); doc["sleep_time"] = prefs.getInt("slp_time", 60);
         doc["polling_rate"] = prefs.getInt("poll", 5000);
@@ -820,13 +853,24 @@ esp_err_t ApiServer::begin(bool oobeMode) {
     AsyncCallbackJsonWebHandler* senUpdateHandler = new AsyncCallbackJsonWebHandler("/api/config/sensors", [](AsyncWebServerRequest *request, JsonVariant &json) {
         if(!isAuthorized(request, "operator")) { auto r = request->beginResponse(401, "application/json", "{\"error\":\"No autorizado.\"}"); addSecurityHeaders(r); request->send(r); return; }
         JsonObject data = json.as<JsonObject>(); prefs.begin("sen", false);
-        if(data["dht_pin"].is<int>()) prefs.putInt("dht_pin", data["dht_pin"].as<int>());
-        if(data["dht_type"].is<int>()) prefs.putInt("dht_type", data["dht_type"].as<int>());
+        
+        if (data["sensors"].is<JsonArray>()) {
+            JsonArray sensors = data["sensors"].as<JsonArray>();
+            int i = 0;
+            for (JsonVariant s : sensors) {
+                if (i >= 5) break;
+                JsonObject sensor = s.as<JsonObject>();
+                if (sensor["pin"].is<int>()) prefs.putInt(("dht_pin_" + String(i)).c_str(), sensor["pin"].as<int>());
+                if (sensor["type"].is<int>()) prefs.putInt(("dht_type_" + String(i)).c_str(), sensor["type"].as<int>());
+                if (sensor["t_off"].is<float>()) prefs.putFloat(("t_off_" + String(i)).c_str(), sensor["t_off"].as<float>());
+                i++;
+            }
+        }
+        
         if(data["adc_pin"].is<int>()) prefs.putInt("adc_pin", data["adc_pin"].as<int>());
         if(data["adc_gnd_pin"].is<int>()) prefs.putInt("adc_gnd_pin", data["adc_gnd_pin"].as<int>());
         if(data["r1"].is<float>()) prefs.putFloat("r1", data["r1"].as<float>());
         if(data["r2"].is<float>()) prefs.putFloat("r2", data["r2"].as<float>());
-        if(data["temp_offset"].is<float>()) prefs.putFloat("t_off", data["temp_offset"].as<float>());
         if(data["adc_offset"].is<float>()) prefs.putFloat("adc_off", data["adc_offset"].as<float>());
         if(data["adc_mult"].is<float>()) prefs.putFloat("adc_mult", data["adc_mult"].as<float>());
         if(data["sleep_mode"].is<int>()) prefs.putInt("slp_mode", data["sleep_mode"].as<int>());
@@ -1047,9 +1091,14 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if (request->method() == HTTP_OPTIONS) {
             request->send(200); 
         } else {
-            auto response = request->beginResponse(LittleFS, "/www/index.html", "text/html");
-            addSecurityHeaders(response); 
-            request->send(response);
+            if(LittleFS.exists("/www/index.html") || LittleFS.exists("/www/index.html.gz")) {
+                auto response = request->beginResponse(LittleFS, "/www/index.html", "text/html");
+                addSecurityHeaders(response); 
+                request->send(response);
+            } else {
+                auto response = request->beginResponse(404, "text/html", "<h1>404 - Frontend No Instalado</h1><p>El servidor web local del ESP32 funciona, pero la aplicacion React no se encuentra en LittleFS.</p><p>Ejecute <b>pio run -t uploadfs</b> para instalar la interfaz.</p>");
+                addSecurityHeaders(response); request->send(response);
+            }
         }
     });
 

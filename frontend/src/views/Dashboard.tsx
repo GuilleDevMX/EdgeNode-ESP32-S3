@@ -21,6 +21,8 @@ import 'react-day-picker/style.css';
 import { apiFetch } from '../api/client';
 import toast from 'react-hot-toast';
 
+const COLORS = ['#F87171', '#FBBF24', '#34D399', '#60A5FA', '#A78BFA'];
+
 const Dashboard = () => {
   const [timeWindow, setTimeWindow] = useState<number>(60);
   
@@ -31,6 +33,13 @@ const Dashboard = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  const [hiddenLines, setHiddenLines] = useState<Record<string, boolean>>({});
+
+  const handleLegendClick = (e: any) => {
+    const dataKey = e.dataKey;
+    setHiddenLines(prev => ({ ...prev, [dataKey]: !prev[dataKey] }));
+  };
 
   useEffect(() => {
     // Cargar fechas disponibles
@@ -53,14 +62,17 @@ const Dashboard = () => {
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
-          const [ts, temp, hum, bat] = line.split(',');
-          let timeLabel = ts;
-          if (ts.includes(' ')) timeLabel = ts.split(' ')[1];
+          const parts = line.split(',');
+          let timeLabel = parts[0];
+          if (timeLabel.includes(' ')) timeLabel = timeLabel.split(' ')[1];
           parsedData.push({
             time: timeLabel,
-            Temperatura: parseFloat(temp),
-            Humedad: parseFloat(hum),
-            Voltaje: parseFloat(bat)
+            T0: parseFloat(parts[1]), H0: parseFloat(parts[2]),
+            T1: parseFloat(parts[3]), H1: parseFloat(parts[4]),
+            T2: parseFloat(parts[5]), H2: parseFloat(parts[6]),
+            T3: parseFloat(parts[7]), H3: parseFloat(parts[8]),
+            T4: parseFloat(parts[9]), H4: parseFloat(parts[10]),
+            Voltaje: parseFloat(parts[11])
           });
         }
         if (parsedData.length > 0) {
@@ -91,18 +103,18 @@ const Dashboard = () => {
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-        const [ts, temp, hum, bat] = line.split(',');
-        
-        let timeLabel = ts;
-        if (ts.includes(' ')) {
-          timeLabel = ts.split(' ')[1]; // Obtener solo la hora si es formato "YYYY-MM-DD HH:MM:SS"
-        }
+        const parts = line.split(',');
+        let timeLabel = parts[0];
+        if (timeLabel.includes(' ')) timeLabel = timeLabel.split(' ')[1];
         
         parsedData.push({
           time: timeLabel,
-          Temperatura: parseFloat(temp),
-          Humedad: parseFloat(hum),
-          Voltaje: parseFloat(bat)
+          T0: parseFloat(parts[1]), H0: parseFloat(parts[2]),
+          T1: parseFloat(parts[3]), H1: parseFloat(parts[4]),
+          T2: parseFloat(parts[5]), H2: parseFloat(parts[6]),
+          T3: parseFloat(parts[7]), H3: parseFloat(parts[8]),
+          T4: parseFloat(parts[9]), H4: parseFloat(parts[10]),
+          Voltaje: parseFloat(parts[11])
         });
       }
       
@@ -116,6 +128,28 @@ const Dashboard = () => {
       setHistoricalData([]);
     } finally {
       setIsLoadingHistory(false);
+    }
+  };
+
+  const handleDeleteHistorical = async () => {
+    if (!selectedDate) return;
+    if (!window.confirm('⚠️ ¿Estás seguro de eliminar este dataset histórico de forma permanente?')) return;
+    
+    const yyyy = selectedDate.getFullYear();
+    const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(selectedDate.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    
+    try {
+      const res = await apiFetch(`/api/dataset?date=${dateStr}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success(`Dataset del ${dateStr} eliminado.`);
+        setHistoricalData([]);
+        setAvailableDates(prev => prev.filter(d => d !== dateStr));
+        setSelectedDate(undefined);
+      }
+    } catch (e) {
+      // toast ya manejado por apiFetch
     }
   };
 
@@ -147,12 +181,15 @@ const Dashboard = () => {
       setChartData((prevData) => {
         const now = new Date();
         const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-        const newDataPoint = {
+        const newDataPoint: any = {
           time: timeString,
-          Temperatura: telemetry.temperature,
-          Humedad: telemetry.humidity,
           Voltaje: telemetry.battery_v,
         };
+        telemetry.sensors?.forEach((s: any) => {
+            newDataPoint[`T${s.id}`] = s.t;
+            newDataPoint[`H${s.id}`] = s.h;
+        });
+
         const newBuffer = [...prevData, newDataPoint];
         if (newBuffer.length > 360) newBuffer.shift();
         return newBuffer;
@@ -161,23 +198,32 @@ const Dashboard = () => {
   }, [telemetry]);
 
   const visibleData = chartData.slice(-timeWindow);
-  const isTempCritical = telemetry?.temperature && telemetry.temperature > 35.0;
+  
+  // Revisar si algún sensor supera los 35 grados
+  const isTempCritical = telemetry?.sensors?.some((s: any) => s.t && s.t > 35.0) ?? false;
   const isBatCritical = telemetry?.battery_v && telemetry.battery_v < 3.2;
 
   const stats = useMemo(() => {
     if (chartData.length === 0) return null;
-    const temps = visibleData.map((d) => d.Temperatura).filter((t) => t !== undefined);
-    const hums = visibleData.map((d) => d.Humedad).filter((h) => h !== undefined);
+    const allTemps: number[] = [];
+    const allHums: number[] = [];
+    
+    visibleData.forEach((d) => {
+        for(let i=0; i<5; i++) {
+            if (typeof d[`T${i}`] === 'number' && !isNaN(d[`T${i}`])) allTemps.push(d[`T${i}`]);
+            if (typeof d[`H${i}`] === 'number' && !isNaN(d[`H${i}`])) allHums.push(d[`H${i}`]);
+        }
+    });
 
-    if (temps.length === 0 || hums.length === 0) return null;
+    if (allTemps.length === 0 || allHums.length === 0) return null;
 
     return {
-      t_mean: (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1),
-      t_max: Math.max(...temps).toFixed(1),
-      t_min: Math.min(...temps).toFixed(1),
-      h_mean: (hums.reduce((a, b) => a + b, 0) / hums.length).toFixed(1),
-      h_max: Math.max(...hums).toFixed(1),
-      h_min: Math.min(...hums).toFixed(1),
+      t_mean: (allTemps.reduce((a, b) => a + b, 0) / allTemps.length).toFixed(1),
+      t_max: Math.max(...allTemps).toFixed(1),
+      t_min: Math.min(...allTemps).toFixed(1),
+      h_mean: (allHums.reduce((a, b) => a + b, 0) / allHums.length).toFixed(1),
+      h_max: Math.max(...allHums).toFixed(1),
+      h_min: Math.min(...allHums).toFixed(1),
     };
   }, [chartData, timeWindow]);
 
@@ -190,6 +236,20 @@ const Dashboard = () => {
     );
   }
 
+  // Preparamos datos scatter promediados para TinyML si se requiere
+  const scatterData = visibleData.map(d => {
+    let t_sum = 0, h_sum = 0, count = 0;
+    for(let i=0; i<5; i++) {
+        if (typeof d[`T${i}`] === 'number' && !isNaN(d[`T${i}`])) {
+            t_sum += d[`T${i}`]; h_sum += d[`H${i}`]; count++;
+        }
+    }
+    return {
+        Temperatura: count > 0 ? t_sum / count : 0,
+        Humedad: count > 0 ? h_sum / count : 0
+    };
+  });
+
   return (
     <div className='space-y-6 animate-fade-in'>
       {/* BANNER DE ALERTAS DINÁMICAS */}
@@ -199,7 +259,7 @@ const Dashboard = () => {
           <div>
             <h3 className='text-red-800 font-bold'>Intervención Requerida</h3>
             <p className='text-red-700 text-sm mt-1'>
-              {isTempCritical && '🔥 Sobrecalentamiento detectado en el nodo. '}
+              {isTempCritical && '🔥 Sobrecalentamiento detectado en al menos una zona. '}
               {isBatCritical && '🔋 Batería en nivel crítico. Conecte alimentación. '}
             </p>
           </div>
@@ -222,13 +282,34 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* KPIs Superiores + Estadísticas */}
+      {/* GRID MULTI-ZONAS */}
+      <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4'>
+        {[0, 1, 2, 3, 4].map((id) => {
+            const sensor = telemetry?.sensors?.find((s: any) => s.id === id);
+            return (
+              <div key={id} className='bg-panel p-4 rounded-lg border border-border-color shadow-sm flex flex-col justify-between hover:border-accent transition-colors'>
+                <p className='text-xs font-bold text-text-secondary uppercase mb-2'>Zona {id + 1}</p>
+                <div className='flex justify-between items-end gap-2'>
+                    <div className='flex flex-col'>
+                        <span className='text-[10px] text-muted font-bold'>TEMP</span>
+                        <p className='text-xl font-black text-primary'>{typeof sensor?.t === 'number' && !isNaN(sensor.t) ? sensor.t.toFixed(1) : '--'}<span className='text-sm text-text-secondary font-normal'>°C</span></p>
+                    </div>
+                    <div className='flex flex-col items-end'>
+                        <span className='text-[10px] text-muted font-bold'>HUM</span>
+                        <p className='text-xl font-black text-primary'>{typeof sensor?.h === 'number' && !isNaN(sensor.h) ? sensor.h.toFixed(1) : '--'}<span className='text-sm text-text-secondary font-normal'>%</span></p>
+                    </div>
+                </div>
+              </div>
+            );
+        })}
+      </div>
+
+      {/* KPIs Superiores + Estadísticas Globales */}
       <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
         <div className='bg-panel p-5 rounded-lg border-l-4 border-orange-500 shadow-sm relative overflow-hidden group'>
-          <p className='text-secondary text-sm font-semibold'>T_DHT22 (Temperatura)</p>
+          <p className='text-secondary text-sm font-semibold'>Media Térmica Global</p>
           <div className='flex items-end gap-3 mt-2'>
-            <p className='text-3xl font-bold text-primary'>{telemetry?.temperature?.toFixed(1) || '--'} <span className='text-lg'>°C</span></p>
-            {stats && <span className='text-xs font-bold text-secondary mb-1'>Media: {stats.t_mean}°C</span>}
+            <p className='text-3xl font-bold text-primary'>{stats?.t_mean || '--'} <span className='text-lg'>°C</span></p>
           </div>
           <div className='absolute inset-x-0 bottom-0 bg-orange-50 h-0 group-hover:h-8 transition-all flex items-center justify-around px-2 opacity-0 group-hover:opacity-100 text-[10px] font-bold text-orange-800'>
             <span>MAX: {stats?.t_max || '--'}°C</span>
@@ -237,10 +318,9 @@ const Dashboard = () => {
         </div>
 
         <div className='bg-panel p-5 rounded-lg border-l-4 border-blue-500 shadow-sm relative overflow-hidden group'>
-          <p className='text-secondary text-sm font-semibold'>H_DHT22 (Humedad)</p>
+          <p className='text-secondary text-sm font-semibold'>Media Humedad Global</p>
           <div className='flex items-end gap-3 mt-2'>
-            <p className='text-3xl font-bold text-primary'>{telemetry?.humidity?.toFixed(1) || '--'} <span className='text-lg'>%</span></p>
-            {stats && <span className='text-xs font-bold text-secondary mb-1'>Media: {stats.h_mean}%</span>}
+            <p className='text-3xl font-bold text-primary'>{stats?.h_mean || '--'} <span className='text-lg'>%</span></p>
           </div>
           <div className='absolute inset-x-0 bottom-0 bg-blue-50 h-0 group-hover:h-8 transition-all flex items-center justify-around px-2 opacity-0 group-hover:opacity-100 text-[10px] font-bold text-blue-800'>
             <span>MAX: {stats?.h_max || '--'}%</span>
@@ -286,8 +366,11 @@ const Dashboard = () => {
       {/* ÁREA DE GRÁFICOS AVANZADOS */}
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
         <div className='card p-5 flex flex-col lg:col-span-2'>
-          <h4 className='text-sm font-bold text-text-secondary mb-4 border-b border-border-color pb-2 uppercase tracking-wider'>Tendencia Termodinámica</h4>
-          <div className='flex-1 min-h-[250px] w-full'>
+          <h4 className='text-sm font-bold text-text-secondary mb-4 border-b border-border-color pb-2 uppercase tracking-wider flex justify-between'>
+            <span>Tendencia Termodinámica (Multi-Zona)</span>
+            <span className='text-[10px] text-muted font-normal normal-case'>Clic en leyenda para ocultar</span>
+          </h4>
+          <div className='flex-1 min-h-[350px] w-full'>
             <ResponsiveContainer width='100%' height='100%'>
               <LineChart data={visibleData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray='3 3' stroke='#f0f0f0' vertical={false} />
@@ -295,9 +378,14 @@ const Dashboard = () => {
                 <YAxis yAxisId='left' stroke='#F29F67' fontSize={10} domain={['dataMin - 2', 'dataMax + 2']} />
                 <YAxis yAxisId='right' orientation='right' stroke='#3B8FF3' fontSize={10} domain={[0, 100]} />
                 <Tooltip contentStyle={{ backgroundColor: '#1E1E2C', borderRadius: '8px', color: '#fff', fontSize: '12px', border: 'none' }} />
-                <Legend iconType='circle' wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                <Line yAxisId='left' type='monotone' dataKey='Temperatura' stroke='#F29F67' strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
-                <Line yAxisId='right' type='monotone' dataKey='Humedad' stroke='#3B8FF3' strokeWidth={2} dot={false} activeDot={{ r: 5 }} isAnimationActive={false} />
+                <Legend iconType='circle' wrapperStyle={{ fontSize: '12px', paddingTop: '10px', cursor: 'pointer' }} onClick={handleLegendClick} />
+                
+                {[0, 1, 2, 3, 4].map(id => (
+                    <Line key={`T${id}`} hide={hiddenLines[`T${id}`]} yAxisId='left' name={`Temp Z${id+1}`} type='monotone' dataKey={`T${id}`} stroke={COLORS[id]} strokeWidth={2} dot={false} isAnimationActive={false} />
+                ))}
+                {[0, 1, 2, 3, 4].map(id => (
+                    <Line key={`H${id}`} hide={hiddenLines[`H${id}`]} yAxisId='right' name={`Hum Z${id+1}`} type='monotone' strokeDasharray="5 5" dataKey={`H${id}`} stroke={COLORS[id]} strokeWidth={2} dot={false} isAnimationActive={false} />
+                ))}
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -322,7 +410,7 @@ const Dashboard = () => {
 
         <div className='card p-5 flex flex-col'>
           <h4 className='text-sm font-bold text-text-secondary mb-4 border-b border-border-color pb-2 uppercase tracking-wider flex justify-between items-center'>
-            <span>Dispersión Ambiental (TinyML View)</span>
+            <span>Dispersión Ambiental (Promedio TinyML)</span>
             <span className='text-[10px] text-muted font-normal normal-case'>Temp vs Humedad</span>
           </h4>
           <div className='flex-1 min-h-[220px] w-full'>
@@ -333,7 +421,7 @@ const Dashboard = () => {
                 <YAxis type='number' dataKey='Humedad' name='Humedad' unit='%' stroke='#9ca3af' fontSize={10} domain={['dataMin - 5', 'dataMax + 5']} />
                 <ZAxis type='number' range={[20, 20]} />
                 <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: '#1E1E2C', borderRadius: '8px', color: '#fff', fontSize: '12px', border: 'none' }} />
-                <Scatter name='Lecturas' data={visibleData} fill='#14B8A6' opacity={0.6} isAnimationActive={false} />
+                <Scatter name='Lecturas Medias' data={scatterData} fill='#14B8A6' opacity={0.6} isAnimationActive={false} />
               </ScatterChart>
             </ResponsiveContainer>
           </div>
@@ -373,9 +461,14 @@ const Dashboard = () => {
                     Datos del {selectedDate.toLocaleDateString('es-ES')}
                   </h4>
                   {historicalData.length > 0 && (
-                    <button onClick={handleDownloadHistorical} className='btn btn-primary text-sm py-1.5'>
-                      Descargar CSV
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={handleDownloadHistorical} className='btn btn-primary text-sm py-1.5'>
+                        Descargar CSV
+                      </button>
+                      <button onClick={handleDeleteHistorical} className='btn btn-danger text-sm py-1.5'>
+                        Borrar Día
+                      </button>
+                    </div>
                   )}
                 </div>
                 
@@ -392,9 +485,14 @@ const Dashboard = () => {
                         <YAxis yAxisId='left' stroke='#F29F67' fontSize={10} domain={['auto', 'auto']} />
                         <YAxis yAxisId='right' orientation='right' stroke='#3B8FF3' fontSize={10} domain={[0, 100]} />
                         <Tooltip contentStyle={{ backgroundColor: '#1E1E2C', borderRadius: '8px', color: '#fff', fontSize: '12px', border: 'none' }} />
-                        <Legend iconType='circle' wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                        <Line yAxisId='left' type='monotone' dataKey='Temperatura' stroke='#F29F67' strokeWidth={2} dot={false} isAnimationActive={false} />
-                        <Line yAxisId='right' type='monotone' dataKey='Humedad' stroke='#3B8FF3' strokeWidth={2} dot={false} isAnimationActive={false} />
+                        <Legend iconType='circle' wrapperStyle={{ fontSize: '12px', paddingTop: '10px', cursor: 'pointer' }} onClick={handleLegendClick} />
+                        
+                        {[0, 1, 2, 3, 4].map(id => (
+                            <Line key={`T${id}`} hide={hiddenLines[`T${id}`]} yAxisId='left' name={`Temp Z${id+1}`} type='monotone' dataKey={`T${id}`} stroke={COLORS[id]} strokeWidth={2} dot={false} isAnimationActive={false} />
+                        ))}
+                        {[0, 1, 2, 3, 4].map(id => (
+                            <Line key={`H${id}`} hide={hiddenLines[`H${id}`]} yAxisId='right' name={`Hum Z${id+1}`} type='monotone' strokeDasharray="5 5" dataKey={`H${id}`} stroke={COLORS[id]} strokeWidth={2} dot={false} isAnimationActive={false} />
+                        ))}
                       </LineChart>
                     </ResponsiveContainer>
                   </div>

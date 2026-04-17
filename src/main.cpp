@@ -155,8 +155,13 @@ void loop() {
         JsonDocument doc; 
         doc["type"] = "telemetry";
         
-        doc["temperature"] = TelemetryMgr.getTemperature(); 
-        doc["humidity"] = TelemetryMgr.getHumidity(); 
+        JsonArray sensors = doc["sensors"].to<JsonArray>();
+        for(int i=0; i<5; i++) {
+            JsonObject s = sensors.add<JsonObject>();
+            s["id"] = i;
+            s["t"] = TelemetryMgr.getTemperature(i);
+            s["h"] = TelemetryMgr.getHumidity(i);
+        }
         doc["battery_v"] = TelemetryMgr.getBatteryVoltage();
         doc["power_state"] = TelemetryMgr.getPowerState();
         doc["heap_free"] = ESP.getFreeHeap(); 

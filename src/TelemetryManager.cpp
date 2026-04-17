@@ -20,8 +20,10 @@ const int PIN_LLENO = 14;
 TelemetryManager TelemetryMgr;
 
 TelemetryManager::TelemetryManager() {
-    currentTemp = 0.0;
-    currentHum = 0.0;
+    for (int i = 0; i < 5; i++) {
+        currentTemp[i] = NAN;
+        currentHum[i] = NAN;
+    }
     currentBatVoltage = 0.0;
     currentPowerState = "Discharging";
     sensorMutex = NULL;
@@ -40,22 +42,54 @@ esp_err_t TelemetryManager::begin() {
     return ESP_OK;
 }
 
-float TelemetryManager::getTemperature() {
-    float val = 0.0;
+float TelemetryManager::getTemperature(int index) {
+    if (index < 0 || index >= 5) return NAN;
+    float val = NAN;
     if (xSemaphoreTake(sensorMutex, portMAX_DELAY) == pdTRUE) {
-        val = currentTemp;
+        val = currentTemp[index];
         xSemaphoreGive(sensorMutex);
     }
     return val;
 }
 
-float TelemetryManager::getHumidity() {
-    float val = 0.0;
+float TelemetryManager::getHumidity(int index) {
+    if (index < 0 || index >= 5) return NAN;
+    float val = NAN;
     if (xSemaphoreTake(sensorMutex, portMAX_DELAY) == pdTRUE) {
-        val = currentHum;
+        val = currentHum[index];
         xSemaphoreGive(sensorMutex);
     }
     return val;
+}
+
+float TelemetryManager::getAverageTemperature() {
+    float sum = 0;
+    int count = 0;
+    if (xSemaphoreTake(sensorMutex, portMAX_DELAY) == pdTRUE) {
+        for (int i = 0; i < 5; i++) {
+            if (!isnan(currentTemp[i])) {
+                sum += currentTemp[i];
+                count++;
+            }
+        }
+        xSemaphoreGive(sensorMutex);
+    }
+    return count > 0 ? (sum / count) : NAN;
+}
+
+float TelemetryManager::getAverageHumidity() {
+    float sum = 0;
+    int count = 0;
+    if (xSemaphoreTake(sensorMutex, portMAX_DELAY) == pdTRUE) {
+        for (int i = 0; i < 5; i++) {
+            if (!isnan(currentHum[i])) {
+                sum += currentHum[i];
+                count++;
+            }
+        }
+        xSemaphoreGive(sensorMutex);
+    }
+    return count > 0 ? (sum / count) : NAN;
 }
 
 float TelemetryManager::getBatteryVoltage() {
@@ -136,8 +170,6 @@ void TelemetryManager::dataLoggerTask(void *parameter) {
         esp_task_wdt_reset(); // Alimentar al perro guardián
         
         if (WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED) {
-            float t = mgr->getTemperature();
-            float h = mgr->getHumidity();
             float b = mgr->getBatteryVoltage();
 
             time_t now; 
@@ -162,9 +194,20 @@ void TelemetryManager::dataLoggerTask(void *parameter) {
             File file = LogFS.open(fileName.c_str(), "a");
             if (file) {
                 if (file.size() == 0) {
-                    file.println("timestamp,temperature,humidity,battery_v");
+                    file.println("timestamp,t0,h0,t1,h1,t2,h2,t3,h3,t4,h4,battery_v");
                 }
-                String csvLine = timeStampStr + "," + String(t, 2) + "," + String(h, 2) + "," + String(b, 2);
+                String csvLine = timeStampStr;
+                for (int i = 0; i < 5; i++) {
+                    float t_val = mgr->getTemperature(i);
+                    float h_val = mgr->getHumidity(i);
+                    csvLine += ",";
+                    if (isnan(t_val)) csvLine += "NaN";
+                    else csvLine += String(t_val, 2);
+                    csvLine += ",";
+                    if (isnan(h_val)) csvLine += "NaN";
+                    else csvLine += String(h_val, 2);
+                }
+                csvLine += "," + String(b, 2);
                 file.println(csvLine);
                 file.close();
             } else {
@@ -198,13 +241,19 @@ void TelemetryManager::sensorTask(void *parameter) {
     // FASE 1: CONFIGURACIÓN INICIAL (Fuera del Bucle)
     // =========================================================
     prefs.begin("sen", true);
-    int dhtPin = prefs.getInt("dht_pin", 4);
-    int dhtType = prefs.getInt("dht_type", 22); 
+    int dhtPins[5];
+    int dhtTypes[5];
+    float tempOffsets[5];
+    int defaultPins[5] = {4, 15, 16, 17, 18};
+    for (int i = 0; i < 5; i++) {
+        dhtPins[i] = prefs.getInt(("dht_pin_" + String(i)).c_str(), defaultPins[i]);
+        dhtTypes[i] = prefs.getInt(("dht_type_" + String(i)).c_str(), 22);
+        tempOffsets[i] = prefs.getFloat(("t_off_" + String(i)).c_str(), -0.5);
+    }
     int adcPin = prefs.getInt("adc_pin", 5);
     int adcGndPin = prefs.getInt("adc_gnd_pin", -1);
     float r1 = prefs.getFloat("r1", 51000.0);
     float r2 = prefs.getFloat("r2", 51000.0);
-    float tempOffset = prefs.getFloat("t_off", -0.5);
     float adcOffset = prefs.getFloat("adc_off", 0.3);
     float adcMult = prefs.getFloat("adc_mult", 0.5);
     int sleepMode = prefs.getInt("slp_mode", 0);
@@ -218,8 +267,15 @@ void TelemetryManager::sensorTask(void *parameter) {
         pinMode(adcGndPin, INPUT); // Default a alta impedancia para no consumir energía
     }
 
-    DHT dht(dhtPin, dhtType);
-    dht.begin();
+    DHT* dhts[5];
+    for (int i = 0; i < 5; i++) {
+        if (dhtPins[i] >= 0) {
+            dhts[i] = new DHT(dhtPins[i], dhtTypes[i]);
+            dhts[i]->begin();
+        } else {
+            dhts[i] = nullptr;
+        }
+    }
     
     // Configuracion de ADC Calibration (eFuses)
     esp_adc_cal_characteristics_t adc_chars;
@@ -247,10 +303,18 @@ void TelemetryManager::sensorTask(void *parameter) {
         // =========================================================
         // FASE 2: LECTURA DHT22 OPTIMIZADA
         // =========================================================
-        float h = dht.readHumidity();
-        float t = dht.readTemperature();
+        float h_vals[5] = {NAN, NAN, NAN, NAN, NAN};
+        float t_vals[5] = {NAN, NAN, NAN, NAN, NAN};
         
-        if (!isnan(t)) t += tempOffset;
+        for (int i = 0; i < 5; i++) {
+            if (dhts[i] != nullptr) {
+                h_vals[i] = dhts[i]->readHumidity();
+                t_vals[i] = dhts[i]->readTemperature();
+                if (!isnan(t_vals[i])) t_vals[i] += tempOffsets[i];
+                vTaskDelay(pdMS_TO_TICKS(500)); // Delay per sensor to avoid brownouts
+                esp_task_wdt_reset();
+            }
+        }
 
         // =========================================================
         // FASE 3: SOBREMUESTREO DEL ADC CON CALIBRACIÓN (eFuses)
@@ -301,8 +365,10 @@ void TelemetryManager::sensorTask(void *parameter) {
         // FASE 5: ACTUALIZACIÓN DE GLOBALES (MUTEX)
         // =========================================================
         if (xSemaphoreTake(mgr->sensorMutex, portMAX_DELAY) == pdTRUE) {
-            if (!isnan(t)) mgr->currentTemp = t;
-            if (!isnan(h)) mgr->currentHum = h;
+            for (int i = 0; i < 5; i++) {
+                mgr->currentTemp[i] = t_vals[i];
+                mgr->currentHum[i] = h_vals[i];
+            }
             mgr->currentBatVoltage = batVoltage;
             mgr->currentPowerState = localPowerState; 
             xSemaphoreGive(mgr->sensorMutex);
@@ -311,9 +377,12 @@ void TelemetryManager::sensorTask(void *parameter) {
         // =========================================================
         // FASE 6: ALERTAS Y TINYML
         // =========================================================
-        NotifMgr.checkSensorThresholds(t, h, batVoltage);
+        NotifMgr.checkSensorThresholds(t_vals, h_vals, batVoltage);
+        
+        float avg_t = mgr->getAverageTemperature();
+        float avg_h = mgr->getAverageHumidity();
 
-        if (AiMgr.detectAnomaly(t, h)) {
+        if (!isnan(avg_t) && !isnan(avg_h) && AiMgr.detectAnomaly(avg_t, avg_h)) {
             float mse = AiMgr.getLastMSE();
             ESP_LOGW(TAG, "🤖 TinyML - ¡ANOMALÍA DETECTADA! MSE: %f", mse);
             
@@ -322,8 +391,8 @@ void TelemetryManager::sensorTask(void *parameter) {
             if (now - lastAiAlertTime > 3600000 || lastAiAlertTime == 0) { 
                 String aiMsg = "<b>¡ALERTA PREDICTIVA DE IA (AUTOENCODER)!</b><br><br>"
                                "El modelo ha detectado un comportamiento ambiental anómalo.<br><br>"
-                               "<b>Temperatura:</b> " + String(t, 1) + " °C<br>"
-                               "<b>Humedad:</b> " + String(h, 1) + " %<br>"
+                               "<b>Temperatura Media:</b> " + String(avg_t, 1) + " °C<br>"
+                               "<b>Humedad Media:</b> " + String(avg_h, 1) + " %<br>"
                                "<b>MSE:</b> " + String(mse, 4) + "<br><br>"
                                "<i>Inspección física requerida.</i>";
                 NotifMgr.sendEmail("🤖 ALERTA PREDICTIVA: Anomalía", aiMsg);
