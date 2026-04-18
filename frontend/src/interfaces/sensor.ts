@@ -1,10 +1,15 @@
+interface DhtConfig {
+  pin: number;
+  type: number;
+  t_off: number;
+}
+
 interface SensorConfig {
-  dht_pin: number;
-  dht_type: number;
+  sensors: DhtConfig[];
   adc_pin: number;
+  adc_gnd_pin?: number;
   r1: number;
   r2: number;
-  temp_offset: number;
   adc_offset: number;
   adc_mult: number;
   sleep_mode: number;
@@ -12,4 +17,4 @@ interface SensorConfig {
   polling_rate: number;
 }
 
-export type { SensorConfig };
+export type { SensorConfig, DhtConfig };

@@ -43,9 +43,9 @@ const Layout = ({ children, activeMenu, setActiveMenu }: LayoutProps) => {
   return (
     <div className='flex h-screen bg-app font-sans text-text-primary overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]'>
       {/* ========== SIDEBAR ESCRITORIO ========== */}
-      <aside className='hidden md:flex w-64 bg-primary text-white dark:text-slate-900 flex-col shadow-2xl z-20 shrink-0'>
-        <div className='h-16 flex items-center justify-start px-6 border-b border-white/10 shrink-0'>
-          <h2 className='text-lg font-black tracking-widest text-white dark:text-slate-900'>
+      <aside className='hidden md:flex w-64 bg-aside text-aside-primary flex-col shadow-2xl z-20 shrink-0 border-r border-border-color dark:border-none'>
+        <div className='h-16 flex items-center justify-start px-6 border-b border-aside-secondary/20 shrink-0'>
+          <h2 className='text-lg font-black tracking-widest text-aside-primary'>
             <span className='text-accent'>Edge</span>SecOps
           </h2>
         </div>
@@ -57,7 +57,7 @@ const Layout = ({ children, activeMenu, setActiveMenu }: LayoutProps) => {
               className={`flex items-center gap-3 px-3 py-3 rounded-lg font-bold transition-all text-left ${
                 activeMenu === item.id
                   ? 'bg-accent text-white'
-                  : 'text-white/60 hover:text-white hover:bg-white/5'
+                  : 'text-aside-secondary hover:text-aside-primary hover:bg-aside-secondary/10'
               }`}
             >
               <svg className='w-6 h-6 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d={item.icon}></path></svg>
@@ -65,10 +65,10 @@ const Layout = ({ children, activeMenu, setActiveMenu }: LayoutProps) => {
             </button>
           ))}
         </nav>
-        <div className='p-4 border-t border-white/10 shrink-0'>
+        <div className='p-4 border-t border-aside-secondary/20 shrink-0'>
           <button
             onClick={logout}
-            className='w-full flex justify-start items-center gap-3 px-3 py-2 text-white/60 hover:text-danger font-bold transition-colors'
+            className='w-full flex justify-start items-center gap-3 px-3 py-2 text-aside-secondary hover:text-danger font-bold transition-colors'
           >
             <svg className='w-6 h-6 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'></path></svg>
             <span>Cerrar Sesión</span>
@@ -80,10 +80,10 @@ const Layout = ({ children, activeMenu, setActiveMenu }: LayoutProps) => {
       {mobileMenuOpen && (
         <>
           <div className='fixed inset-0 bg-black/50 z-30 md:hidden animate-fade-in' onClick={() => setMobileMenuOpen(false)} />
-          <div className='fixed inset-y-0 left-0 w-64 bg-primary text-white dark:text-slate-900 z-40 md:hidden transform transition-transform duration-300 flex flex-col shadow-2xl'>
-            <div className='h-16 flex items-center justify-between px-6 border-b border-white/10 shrink-0'>
-              <h2 className='text-lg font-black text-white dark:text-slate-900'><span className='text-accent'>Edge</span>SecOps</h2>
-              <button onClick={() => setMobileMenuOpen(false)} className='p-2 hover:bg-white/10 rounded-lg transition-colors'>
+          <div className='fixed inset-y-0 left-0 w-64 bg-aside text-aside-primary z-40 md:hidden transform transition-transform duration-300 flex flex-col shadow-2xl'>
+            <div className='h-16 flex items-center justify-between px-6 border-b border-aside-secondary/20 shrink-0'>
+              <h2 className='text-lg font-black text-aside-primary'><span className='text-accent'>Edge</span>SecOps</h2>
+              <button onClick={() => setMobileMenuOpen(false)} className='p-2 hover:bg-aside-secondary/10 rounded-lg transition-colors'>
                 <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M6 18L18 6M6 6l12 12'></path></svg>
               </button>
             </div>
@@ -93,7 +93,7 @@ const Layout = ({ children, activeMenu, setActiveMenu }: LayoutProps) => {
                   key={item.id}
                   onClick={() => { setActiveMenu(item.id as any); setMobileMenuOpen(false); }}
                   className={`flex items-center gap-3 px-4 py-4 rounded-lg font-bold transition-all text-left ${
-                    activeMenu === item.id ? 'bg-accent text-white' : 'text-white/60 hover:text-white hover:bg-white/5'
+                    activeMenu === item.id ? 'bg-accent text-white' : 'text-aside-secondary hover:text-aside-primary hover:bg-aside-secondary/10'
                   }`}
                 >
                   <svg className='w-6 h-6 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d={item.icon}></path></svg>
@@ -101,8 +101,8 @@ const Layout = ({ children, activeMenu, setActiveMenu }: LayoutProps) => {
                 </button>
               ))}
             </nav>
-            <div className='p-4 border-t border-white/10 shrink-0'>
-              <button onClick={() => { logout(); setMobileMenuOpen(false); }} className='w-full flex items-center gap-3 px-4 py-3 text-white/60 hover:text-danger font-bold transition-colors rounded-lg'>
+            <div className='p-4 border-t border-aside-secondary/20 shrink-0'>
+              <button onClick={() => { logout(); setMobileMenuOpen(false); }} className='w-full flex items-center gap-3 px-4 py-3 text-aside-secondary hover:text-danger font-bold transition-colors rounded-lg'>
                 <svg className='w-6 h-6 shrink-0' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'></path></svg>
                 <span>Cerrar Sesión</span>
               </button>
@@ -126,7 +126,7 @@ const Layout = ({ children, activeMenu, setActiveMenu }: LayoutProps) => {
 
           <div className='flex items-center gap-4 shrink-0'>
             {/* Theme Toggle Button */}
-            <button onClick={toggleTheme} className='hidden sm:flex items-center justify-center p-2 rounded-full hover:bg-app text-text-secondary transition-colors' title={`Cambiar a modo ${theme === 'light' ? 'oscuro' : 'claro'}`}>
+            <button onClick={toggleTheme} className='flex items-center justify-center p-2 rounded-full hover:bg-app text-text-secondary transition-colors' title={`Cambiar a modo ${theme === 'light' ? 'oscuro' : 'claro'}`}>
               {theme === 'light' ? (
                 <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z'></path></svg>
               ) : (
@@ -136,7 +136,7 @@ const Layout = ({ children, activeMenu, setActiveMenu }: LayoutProps) => {
 
             {/* Estado de conexión WebSocket */}
             <div className='hidden lg:flex items-center gap-2 px-3 py-1.5 bg-app rounded-lg border border-border-color shadow-inner text-xs font-mono' title={wsStatusStr}>
-              <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+              <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-500 dark:bg-green-600 animate-pulse' : 'bg-red-500'}`}></span>
               <span className='text-text-secondary truncate max-w-[150px]'>{wsStatusStr}</span>
             </div>
 
@@ -144,12 +144,12 @@ const Layout = ({ children, activeMenu, setActiveMenu }: LayoutProps) => {
               <span className='text-text-primary font-mono font-bold text-sm'>
                 {sysTime?.toLocaleTimeString('es-MX', { hour12: false }) || '--:--:--'}
               </span>
-              <span className='text-xs text-text-muted font-semibold'>
+              <span className='text-xs text-muted font-semibold'>
                 Up: {telemetry ? Math.floor(telemetry.uptime / 60) : 0}m
               </span>
             </div>
 
-            <div className='px-2 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs md:text-sm font-mono rounded border border-blue-500/20 shadow-inner shrink-0'>
+            <div className='px-2 py-1 bg-blue-500/10 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs md:text-sm font-mono rounded border border-blue-500/20 shadow-inner shrink-0'>
               {role?.toUpperCase() || 'GUEST'}
             </div>
 

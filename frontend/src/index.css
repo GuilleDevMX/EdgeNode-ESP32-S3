@@ -12,11 +12,20 @@
     --bg-panel: #FFFFFF;
     /* Borde / Divisores */
     --border-color: #E5E7EB;
+    --bg-orange-accent: #F59E0B;
+    --bg-blue-support: #3B8FF3;
+    --bg-teal-support: #14B8A6;
+    
+    /* Sidebar / Aside */
+    --bg-aside: #1E1E2C;
     
     /* Textos */
     --text-primary: #1E1E2C;
     --text-secondary: #4B5563;
     --text-muted: #9CA3AF;
+    --text-primary-aside: #F8FAFC;
+    --text-secondary-aside: #CBD5E1;
+    --text-muted-aside: #94A3B8;
     
     /* Acentos */
     --color-primary: #1E1E2C;
@@ -38,11 +47,20 @@
     --bg-panel: #1E293B;
     /* Borde / Divisores */
     --border-color: #334155;
+    --bg-orange-accent: #F59E0B;
+    --bg-blue-support: #3B8FF3;
+    --bg-teal-support: #14B8A6;
+
+    /* Sidebar / Aside */
+    --bg-aside: #0F172A;
     
     /* Textos */
     --text-primary: #F8FAFC;
-    --text-secondary: #94A3B8;
-    --text-muted: #64748B;
+    --text-secondary: #CBD5E1;
+    --text-muted: #94A3B8;
+    --text-primary-aside: #F8FAFC;
+    --text-secondary-aside: #CBD5E1;
+    --text-muted-aside: #94A3B8;
     
     /* Acentos */
     --color-primary: #F8FAFC;
@@ -96,6 +114,10 @@
   /* TARJETAS UNIFICADAS */
   .card {
     @apply bg-panel border border-border-color rounded-xl shadow-sm transition-colors duration-300;
+  }
+
+  .card-user-role {
+    @apply bg-panel p-3 border border-border-color rounded-lg text-primary placeholder-muted focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all;
   }
   
   /* INPUTS UNIFICADOS */

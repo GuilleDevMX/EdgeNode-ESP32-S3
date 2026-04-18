@@ -9,6 +9,7 @@ public:
     esp_err_t begin(bool oobeMode);
     void handleWebSocket();
     void broadcastTelemetry(const String& jsonOutput);
+    uint32_t getClientCount();
     void cleanup();
 };
 

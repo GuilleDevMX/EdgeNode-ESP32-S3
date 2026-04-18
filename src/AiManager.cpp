@@ -13,6 +13,8 @@ const float norm_t_min = 10.0;
 const float norm_t_max = 40.0;
 const float norm_h_min = 20.0;
 const float norm_h_max = 80.0;
+const float norm_b_min = 3.0;
+const float norm_b_max = 4.2;
 const float anomaly_threshold = 0.015;
 
 const tflite::Model* ml_model = nullptr;
@@ -88,30 +90,47 @@ int32_t AiManager::getLastInferenceTime() const {
     return last_inference_time_us;
 }
 
-bool AiManager::detectAnomaly(float temperature, float humidity) {
-    if (!ml_ready || isnan(temperature) || isnan(humidity)) {
+bool AiManager::detectAnomaly(float temps[5], float hums[5], float battery) {
+    if (!ml_ready) {
         return false;
     }
 
-    float norm_t = (temperature - norm_t_min) / (norm_t_max - norm_t_min);
-    float norm_h = (humidity - norm_h_min) / (norm_h_max - norm_h_min);
+    float norm_input[11];
     
-    if(norm_t < 0) norm_t = 0; if(norm_t > 1) norm_t = 1;
-    if(norm_h < 0) norm_h = 0; if(norm_h > 1) norm_h = 1;
+    for (int i=0; i<5; i++) {
+        float t = temps[i];
+        float h = hums[i];
+        
+        // Rellenar variables faltantes con valores medios
+        if (isnan(t)) t = 25.0; 
+        if (isnan(h)) h = 50.0;
 
-    ml_input->data.f[0] = norm_t;
-    ml_input->data.f[1] = norm_h;
+        norm_input[i] = (t - norm_t_min) / (norm_t_max - norm_t_min);
+        norm_input[i+5] = (h - norm_h_min) / (norm_h_max - norm_h_min);
+    }
+    
+    // Normalizar batería
+    norm_input[10] = (battery - norm_b_min) / (norm_b_max - norm_b_min);
+
+    // Aplicar clipping y asignar al tensor de entrada
+    for (int i=0; i<11; i++) {
+        if(norm_input[i] < 0) norm_input[i] = 0;
+        if(norm_input[i] > 1) norm_input[i] = 1;
+        ml_input->data.f[i] = norm_input[i];
+    }
 
     int64_t start_time = esp_timer_get_time();
     if (ml_interpreter->Invoke() == kTfLiteOk) {
         int64_t end_time = esp_timer_get_time();
         last_inference_time_us = (int32_t)(end_time - start_time);
 
-        float recon_t = ml_output->data.f[0];
-        float recon_h = ml_output->data.f[1];
+        float mse_sum = 0;
+        for (int i=0; i<11; i++) {
+            float recon = ml_output->data.f[i];
+            mse_sum += (norm_input[i] - recon) * (norm_input[i] - recon);
+        }
 
-        last_mse = ((norm_t - recon_t) * (norm_t - recon_t) + 
-                    (norm_h - recon_h) * (norm_h - recon_h)) / 2.0;
+        last_mse = mse_sum / 11.0;
 
         return (last_mse > anomaly_threshold);
     }

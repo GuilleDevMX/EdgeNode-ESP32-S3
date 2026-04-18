@@ -32,32 +32,6 @@ esp_err_t NotificationManager::begin() {
     return ESP_OK;
 }
 
-// --- Helpers para credenciales encriptadas ---
-void NotificationManager::saveEncryptedCredential(const char* key, const String& value) {
-    if (value == "") return;
-    String encrypted = encryptCredential(value);
-    if (encrypted != "") {
-        Preferences prefs;
-        if (prefs.begin("smtp", false)) {
-            prefs.putString(key, encrypted);
-            prefs.end();
-        }
-    }
-}
-
-String NotificationManager::loadEncryptedCredential(const char* key, const String& defaultValue) {
-    Preferences prefs;
-    String result = defaultValue;
-    if (prefs.begin("smtp", true)) {
-        String encrypted = prefs.getString(key, "");
-        prefs.end();
-        if (encrypted != "") {
-            String decrypted = decryptCredential(encrypted);
-            if (decrypted != "") result = decrypted;
-        }
-    }
-    return result;
-}
 
 // =========================================================================
 // MÉTODOS DE COMUNICACIÓN BASE
@@ -72,7 +46,7 @@ bool NotificationManager::sendEmail(String subject, String htmlMessage) {
     String host = prefs.getString("host", "smtp.gmail.com");
     int port = prefs.getInt("port", 465);
     String user = prefs.getString("user", "");
-    String pass = loadEncryptedCredential("pass_enc", "");
+    String pass = ::loadEncryptedCredential(prefs, "pass", "");
     String recipient = prefs.getString("dest", "");
     prefs.end();
     
@@ -119,7 +93,7 @@ void NotificationManager::sendWhatsAppAlert(String message) {
     p.begin("smtp", true); // Asumiendo que todo se guarda en el namespace "smtp"
     bool wa_en = p.getBool("wa_en", false);
     String phone = p.getString("wa_phone", "");
-    String apiKey = p.getString("wa_api", "");
+    String apiKey = ::loadEncryptedCredential(p, "wa_api", "");
     p.end();
 
     if (!wa_en || phone == "" || apiKey == "") return;
@@ -146,7 +120,7 @@ void NotificationManager::syncDataToCloud(String jsonPayload) {
     p.begin("smtp", true);
     bool cloud_en = p.getBool("cloud_en", false);
     String url = p.getString("cloud_url", "");
-    String token = p.getString("cloud_auth", "");
+    String token = ::loadEncryptedCredential(p, "cloud_auth", "");
     p.end();
 
     if (!cloud_en || url == "") return;
@@ -170,7 +144,7 @@ void NotificationManager::syncDataToCloud(String jsonPayload) {
 // MOTORES DE EVALUACIÓN Y DISPARO
 // =========================================================================
 
-void NotificationManager::checkSensorThresholds(float temp, float hum, float battery) {
+void NotificationManager::checkSensorThresholds(float temps[5], float hums[5], float battery) {
     if (WiFi.getMode() != WIFI_STA || WiFi.status() != WL_CONNECTED) return;
     
     Preferences prefs;
@@ -190,23 +164,29 @@ void NotificationManager::checkSensorThresholds(float temp, float hum, float bat
     
     // 1. TEMPERATURA
     if (a_temp && (now - lastTempAlertTime > cooldown_ms || lastTempAlertTime == 0)) {
-        if (temp > t_max) {
-            String emailMsg = "<b>🔥 ALERTA TÉRMICA: SOBRECALENTAMIENTO</b><br><br>El sensor registró <b>" + String(temp, 1) + " °C</b>.";
-            String waMsg = "🔥 ALERTA TÉRMICA\nEl sensor registró " + String(temp, 1) + " °C, superando el máximo de " + String(t_max, 1) + " °C.";
-            
-            sendWhatsAppAlert(waMsg); // Dispara WhatsApp
-            if(sendEmail("🔥 ALERTA: Alta Temperatura", emailMsg)) lastTempAlertTime = now;
+        for (int i = 0; i < 5; i++) {
+            if (!isnan(temps[i]) && temps[i] > t_max) {
+                String emailMsg = "<b>🔥 ALERTA TÉRMICA: SOBRECALENTAMIENTO</b><br><br>El sensor " + String(i) + " registró <b>" + String(temps[i], 1) + " °C</b>.";
+                String waMsg = "🔥 ALERTA TÉRMICA\nEl sensor " + String(i) + " registró " + String(temps[i], 1) + " °C, superando el máximo de " + String(t_max, 1) + " °C.";
+                
+                sendWhatsAppAlert(waMsg); // Dispara WhatsApp
+                if(sendEmail("🔥 ALERTA: Alta Temperatura", emailMsg)) lastTempAlertTime = now;
+                break;
+            }
         }
     }
     
     // 2. HUMEDAD
     if (a_hum && (now - lastHumAlertTime > cooldown_ms || lastHumAlertTime == 0)) {
-        if (hum > h_max) {
-            String emailMsg = "<b>💧 ALERTA: EXCESO DE HUMEDAD</b><br><br>Se registró <b>" + String(hum, 1) + " %</b>.";
-            String waMsg = "💧 ALERTA DE HUMEDAD\nSe registró " + String(hum, 1) + " %, superando el límite de " + String(h_max, 1) + " %.";
-            
-            sendWhatsAppAlert(waMsg);
-            if(sendEmail("💧 ALERTA: Humedad Peligrosa", emailMsg)) lastHumAlertTime = now;
+        for (int i = 0; i < 5; i++) {
+            if (!isnan(hums[i]) && hums[i] > h_max) {
+                String emailMsg = "<b>💧 ALERTA: EXCESO DE HUMEDAD</b><br><br>El sensor " + String(i) + " registró <b>" + String(hums[i], 1) + " %</b>.";
+                String waMsg = "💧 ALERTA DE HUMEDAD\nEl sensor " + String(i) + " registró " + String(hums[i], 1) + " %, superando el límite de " + String(h_max, 1) + " %.";
+                
+                sendWhatsAppAlert(waMsg);
+                if(sendEmail("💧 ALERTA: Humedad Peligrosa", emailMsg)) lastHumAlertTime = now;
+                break;
+            }
         }
     }
     

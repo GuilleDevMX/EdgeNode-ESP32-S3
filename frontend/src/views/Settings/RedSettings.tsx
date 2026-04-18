@@ -123,7 +123,7 @@ const RedSettings = () => {
                         }
                         className="checkbox-field"
                       />
-                      <span className="text-sm font-semibold text-gray-700">
+                      <span className="text-sm font-semibold text-text-secondary">
                         Usar Asignación Dinámica (DHCP)
                       </span>
                     </label>
@@ -132,7 +132,7 @@ const RedSettings = () => {
                   {/* CAMPOS DE IP ESTÁTICA CONDICIONALES */}
                   {!netConfig.dhcp && (
                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 p-5 bg-panel border border-border-color rounded shadow-inner animate-fade-in">
-                      <div className="md:col-span-2 border-b border-gray-100 pb-2 mb-2">
+                      <div className="md:col-span-2 border-b border-border-color pb-2 mb-2">
                         <h5 className="text-sm font-bold text-text-primary">
                           Parámetros TCP/IP Manuales
                         </h5>
@@ -270,7 +270,7 @@ const RedSettings = () => {
                         }
                         className="checkbox-field"
                       />
-                      <span className="text-sm font-semibold text-gray-700">
+                      <span className="text-sm font-semibold text-text-secondary">
                         Ocultar SSID (Hidden Network)
                       </span>
                     </label>
@@ -313,7 +313,7 @@ const RedSettings = () => {
                         }
                         className="input-field rounded-l"
                       />
-                      <span className="bg-gray-200 border border-l-0 border-border-color text-muted p-2 rounded-r">
+                      <span className="bg-app border border-l-0 border-border-color text-muted font-bold p-2 rounded-r flex items-center text-text-secondary">
                         .local
                       </span>
                     </div>

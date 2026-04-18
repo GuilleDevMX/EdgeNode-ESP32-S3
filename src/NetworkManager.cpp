@@ -14,6 +14,7 @@
 #include <esp_log.h>
 #include <esp_check.h>
 #include "DisplayManager.h"
+#include "CryptoUtils.h"
 
 static const char *TAG = "EdgeSecOps";
 
@@ -163,7 +164,7 @@ esp_err_t NetworkManager::initNTP() {
     Preferences prefs;
     prefs.begin("wifi", true); 
     String ntpServer = prefs.getString("ntp", "time.google.com");
-    String tz = prefs.getString("tz", "CST6CDT,M4.1.0,M10.5.0"); 
+    String tz = prefs.getString("tz", "CST6"); 
     prefs.end();
     ESP_LOGI(TAG, "SYS - NTP Server: %s | TZ: %s", ntpServer.c_str(), tz.c_str());
     configTzTime(tz.c_str(), ntpServer.c_str(), "pool.ntp.org", "time.windows.com");
@@ -227,11 +228,11 @@ esp_err_t NetworkManager::setupWebServerOOBE(AsyncWebServer* server) {
         prefs.begin("net", false);
         prefs.putString("ssid", ssid);
         prefs.putString("pass", pass);
-        if (data.containsKey("dhcp")) prefs.putBool("dhcp", data["dhcp"].as<bool>());
-        if (data.containsKey("ip")) prefs.putString("ip", data["ip"].as<String>());
-        if (data.containsKey("gateway")) prefs.putString("gw", data["gateway"].as<String>());
-        if (data.containsKey("subnet")) prefs.putString("sn", data["subnet"].as<String>());
-        if (data.containsKey("dns")) prefs.putString("dns", data["dns"].as<String>());
+        if (data["dhcp"].is<bool>()) prefs.putBool("dhcp", data["dhcp"].as<bool>());
+        if (data["ip"].is<String>()) prefs.putString("ip", data["ip"].as<String>());
+        if (data["gateway"].is<String>()) prefs.putString("gw", data["gateway"].as<String>());
+        if (data["subnet"].is<String>()) prefs.putString("sn", data["subnet"].as<String>());
+        if (data["dns"].is<String>()) prefs.putString("dns", data["dns"].as<String>());
         prefs.end();
 
         auto response = request->beginResponse(200, "application/json", "{\"message\":\"Configuración aplicada. Reiniciando nodo...\"}");
@@ -245,8 +246,13 @@ esp_err_t NetworkManager::setupWebServerOOBE(AsyncWebServer* server) {
     server->onNotFound([](AsyncWebServerRequest *request) {
         if (request->method() == HTTP_OPTIONS) { request->send(200); } 
         else {
-            auto response = request->beginResponse(LittleFS, "/www/index.html", "text/html");
-            addSecurityHeaders(response); request->send(response);
+            if(LittleFS.exists("/www/index.html") || LittleFS.exists("/www/index.html.gz")) {
+                auto response = request->beginResponse(LittleFS, "/www/index.html", "text/html");
+                addSecurityHeaders(response); request->send(response);
+            } else {
+                auto response = request->beginResponse(404, "text/html", "<h1>404 - Frontend No Instalado</h1><p>El servidor web local del ESP32 funciona, pero la aplicacion React no se encuentra en LittleFS.</p><p>Ejecute <b>pio run -t uploadfs</b> para instalar la interfaz.</p>");
+                addSecurityHeaders(response); request->send(response);
+            }
         }
     });
 

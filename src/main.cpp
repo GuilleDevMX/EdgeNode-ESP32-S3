@@ -37,6 +37,7 @@ void initSecureRNG();
 
 // --- INSTANCIACIÓN DE CLASES PRINCIPALES ---
 Preferences prefs;
+fs::LittleFSFS LogFS;
 
 void initSecureRNG() {
     uint32_t seed = esp_random() ^ (uint32_t)micros() ^ (uint32_t)(ESP.getEfuseMac() >> 32);
@@ -72,6 +73,9 @@ esp_err_t init_system() {
 
     // 2. LittleFS
     ESP_RETURN_ON_FALSE(LittleFS.begin(true), ESP_FAIL, TAG, "CRIT - Fallo montando LittleFS.");
+    
+    // LogFS para partición de logs y datasets
+    ESP_RETURN_ON_FALSE(LogFS.begin(true, "/logs", 10, "logs"), ESP_FAIL, TAG, "CRIT - Fallo montando LogFS.");
     
     // Inicializar TinyML
     ESP_RETURN_ON_ERROR(AiMgr.begin(), TAG, "Failed to init AI");
@@ -146,13 +150,38 @@ void setup() {
 void loop() {
     NetMgr.handleLoop();    
     static unsigned long lastTelemetry = 0;
+    
+    // --- Power Management: Dynamic Frequency Scaling (DFS) ---
+    static bool isLowPowerMode = false;
+    uint32_t activeClients = ApiSrv.getClientCount();
+    
+    // Solo permitir DFS si estamos en modo Estación (operativo) y aprovisionados.
+    // El modo AP (Captive Portal u OOBE) requiere alto rendimiento para servir la UI.
+    bool canEnterLowPower = SecMgr.isProvisioned() && (WiFi.getMode() == WIFI_STA);
+    
+    if (activeClients == 0 && !isLowPowerMode && millis() > 15000 && canEnterLowPower) {
+        setCpuFrequencyMhz(80);
+        isLowPowerMode = true;
+        ESP_LOGI(TAG, "PWR - Entrando en Modo Bajo Consumo (80MHz). 0 clientes WS activos.");
+    } else if ((activeClients > 0 || !canEnterLowPower) && isLowPowerMode) {
+        setCpuFrequencyMhz(240);
+        isLowPowerMode = false;
+        ESP_LOGI(TAG, "PWR - Saliendo de Modo Bajo Consumo (240MHz).");
+    }
+    // ---------------------------------------------------------
+
     if (millis() - lastTelemetry > 5000) {
         lastTelemetry = millis();
         JsonDocument doc; 
         doc["type"] = "telemetry";
         
-        doc["temperature"] = TelemetryMgr.getTemperature(); 
-        doc["humidity"] = TelemetryMgr.getHumidity(); 
+        JsonArray sensors = doc["sensors"].to<JsonArray>();
+        for(int i=0; i<5; i++) {
+            JsonObject s = sensors.add<JsonObject>();
+            s["id"] = i;
+            s["t"] = TelemetryMgr.getTemperature(i);
+            s["h"] = TelemetryMgr.getHumidity(i);
+        }
         doc["battery_v"] = TelemetryMgr.getBatteryVoltage();
         doc["power_state"] = TelemetryMgr.getPowerState();
         doc["heap_free"] = ESP.getFreeHeap(); 

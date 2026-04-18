@@ -41,10 +41,10 @@ const WhatsAppSettings = () => {
           Notificaciones de WhatsApp
         </h3>
         <span
-          className={`border text-xs px-3 py-1 rounded-full font-semibold flex items-center gap-1 ${waConfig.enabled ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-text-secondary border-gray-200'}`}
+          className={`border text-xs px-3 py-1 rounded-full font-semibold flex items-center gap-1 ${waConfig.enabled ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-800/50 text-text-secondary border-gray-200 dark:border-gray-700'}`}
         >
           <div
-            className={`w-2 h-2 rounded-full ${waConfig.enabled ? 'bg-green-500' : 'bg-gray-400'}`}
+            className={`w-2 h-2 rounded-full ${waConfig.enabled ? 'bg-green-500 dark:bg-green-600' : 'bg-gray-400 dark:bg-gray-500'}`}
           ></div>
           {waConfig.enabled ? 'Servicio Activo' : 'Servicio Apagado'}
         </span>
@@ -82,7 +82,7 @@ const WhatsAppSettings = () => {
                 }
                 className="checkbox-field"
               />
-              <span className="text-sm font-bold text-gray-700">
+              <span className="label-field">
                 Habilitar Alertas por WhatsApp
               </span>
             </label>

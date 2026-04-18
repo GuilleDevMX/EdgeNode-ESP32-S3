@@ -1,3 +1,9 @@
+interface SensorData {
+  id: number;
+  t: number;
+  h: number;
+}
+
 interface Telemetry {
   heap_free: number;
   psram_free: number;
@@ -5,10 +11,9 @@ interface Telemetry {
   psram_max_block?: number;
   ml_inference_us?: number;
   uptime: number;
-  temperature?: number;
-  humidity?: number;
+  sensors?: SensorData[];
   battery_v?: number;
   power_state?: string;
 }
 
-export type { Telemetry };
+export type { Telemetry, SensorData };

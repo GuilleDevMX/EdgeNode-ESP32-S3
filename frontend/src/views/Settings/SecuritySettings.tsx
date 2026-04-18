@@ -206,7 +206,7 @@ const SecuritySettings = () => {
               <button
                 type='button'
                 onClick={handleRotateKey}
-                className="w-full py-2 bg-red-50 text-red-600 border border-red-200 rounded font-bold hover:bg-red-100 transition-colors flex justify-center items-center gap-2"
+                className="w-full py-2 bg-red-50 dark:bg-red-900/30 text-red-600 border border-red-200 dark:border-red-800 rounded font-bold hover:bg-red-100 transition-colors flex justify-center items-center gap-2"
               >
                 <svg
                   className="w-4 h-4"
@@ -221,7 +221,7 @@ const SecuritySettings = () => {
                     d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
                   ></path>
                 </svg>
-                Rotar Llave Secreta (Forzar Logout Global)
+                Rotar Llave Secreta
               </button>
             </div>
             <p className="md:col-span-2 text-xs text-muted mt-1">
@@ -265,7 +265,7 @@ const SecuritySettings = () => {
                 }
                 className="checkbox-field"
               />
-              <span className="text-sm font-semibold text-gray-700">
+              <span className="text-sm font-semibold text-text-secondary">
                 Habilitar Lista Blanca de IPs (Allowlist)
               </span>
             </label>
@@ -286,7 +286,7 @@ const SecuritySettings = () => {
                 placeholder='Ejemplo:&#10;192.168.1.50&#10;192.168.1.105'
                 className="w-full p-3 border border-border-color rounded focus:ring-2 focus:ring-navy-dark focus:outline-none font-mono text-sm bg-panel"
               ></textarea>
-              <p className="text-xs text-red-500 mt-1 font-semibold">
+              <p className="text-xs text-red-500 dark:text-red-400 mt-1 font-semibold">
                 ⚠️ ¡Precaución! Asegúrese de incluir su IP actual o perderá
                 acceso al nodo instantáneamente al guardar.
               </p>
@@ -298,7 +298,7 @@ const SecuritySettings = () => {
         <div className="flex justify-end gap-4 pt-2">
           <button
             type='button'
-            className="px-6 py-2 border border-border-color text-text-secondary rounded font-semibold hover:bg-gray-100 transition-colors"
+            className="px-6 py-2 border border-border-color text-text-secondary rounded font-semibold hover:bg-gray-100 dark:bg-gray-800 transition-colors"
           >
             Descartar Cambios
           </button>

@@ -7,6 +7,8 @@
 #include <mbedtls/md.h>
 #include <mbedtls/aes.h>
 
+#include <Preferences.h>
+
 /**
  * @brief Genera hash SHA256 con validación de errores
  * @param payload Cadena a hashear
@@ -47,5 +49,22 @@ String decryptCredential(const String& encryptedHex);
  * @return Cadena limpia de caracteres de control
  */
 String sanitizeEmailField(const String& input);
+
+/**
+ * @brief Carga una credencial desencriptándola. Si no está encriptada, devuelve texto plano (fallback).
+ * @param prefs Objeto Preferences ya abierto
+ * @param key Clave NVS
+ * @param defaultVal Valor por defecto
+ * @return Cadena en texto plano
+ */
+String loadEncryptedCredential(Preferences& prefs, const char* key, const char* defaultVal = "");
+
+/**
+ * @brief Encripta y guarda una credencial en NVS.
+ * @param prefs Objeto Preferences ya abierto
+ * @param key Clave NVS
+ * @param plaintext Texto plano a guardar
+ */
+void saveEncryptedCredential(Preferences& prefs, const char* key, const String& plaintext);
 
 #endif // CRYPTO_UTILS_H

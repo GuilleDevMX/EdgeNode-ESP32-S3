@@ -240,15 +240,15 @@ void ApiServer::cleanup() {
 void writeAuditLog(String severity, String user, String action) {
     if (WiFi.status() != WL_CONNECTED) return; // Requerimos NTP
 
-    File file = LittleFS.open("/www/audit.csv", "a");
+    File file = LogFS.open("/audit.csv", "a");
     if (!file) return;
 
     // Rotación de logs (Máximo 50KB para no gastar la memoria flash)
     if (file.size() > 50 * 1024) {
         file.close();
-        LittleFS.remove("/www/audit_old.csv");
-        LittleFS.rename("/www/audit.csv", "/www/audit_old.csv");
-        file = LittleFS.open("/www/audit.csv", "w");
+        LogFS.remove("/audit_old.csv");
+        LogFS.rename("/audit.csv", "/audit_old.csv");
+        file = LogFS.open("/audit.csv", "w");
         file.println("timestamp,severity,user,action");
     } else if (file.size() == 0) {
         file.println("timestamp,severity,user,action");
@@ -540,12 +540,97 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isAuthorized(request, "operator") && !isAuthorized(request, "m2m_dataset")) { 
             auto r = request->beginResponse(401, "application/json", "{\"error\":\"Acceso Denegado.\"}"); addSecurityHeaders(r); request->send(r); return; 
         }
-        if(LittleFS.exists("/www/dataset.csv")) {
-            auto r = request->beginResponse(LittleFS, "/www/dataset.csv", "text/csv", true); addSecurityHeaders(r); request->send(r);
+        
+        String fileName = "/www/dataset.csv";
+        if (request->hasParam("date")) {
+            fileName = "/dataset_" + request->getParam("date")->value() + ".csv";
         } else {
-            auto r = request->beginResponse(404, "application/json", "{\"error\":\"Dataset vacío.\"}"); addSecurityHeaders(r); request->send(r);
+            time_t now; time(&now);
+            if (now > 1600000000LL) {
+                struct tm timeinfo;
+                localtime_r(&now, &timeinfo);
+                char buf[30];
+                strftime(buf, sizeof(buf), "/dataset_%Y-%m-%d.csv", &timeinfo);
+                if (LogFS.exists(buf)) {
+                    fileName = String(buf);
+                }
+            }
+        }
+
+        if(LogFS.exists(fileName.c_str())) {
+            auto r = request->beginResponse(LogFS, fileName.c_str(), "text/csv", true); addSecurityHeaders(r); request->send(r);
+        } else {
+            auto r = request->beginResponse(200, "text/csv", "timestamp,temperature,humidity,battery_v\n"); addSecurityHeaders(r); request->send(r);
         }
     });
+
+    server.on("/api/datasets", HTTP_GET, [](AsyncWebServerRequest *request){
+        if(!isIpAllowed(request)) { auto r = request->beginResponse(403, "application/json", "{\"error\":\"Firewall\"}"); addSecurityHeaders(r); request->send(r); return; }
+        if(!isAuthorized(request, "operator") && !isAuthorized(request, "m2m_dataset")) { 
+            auto r = request->beginResponse(401, "application/json", "{\"error\":\"Acceso Denegado.\"}"); addSecurityHeaders(r); request->send(r); return; 
+        }
+        
+        JsonDocument doc; JsonArray files = doc.to<JsonArray>();
+        File root = LogFS.open("/");
+        File file = root.openNextFile();
+        while(file) {
+            String name = file.name();
+            if (name.startsWith("dataset_") && name.endsWith(".csv")) {
+                String dateStr = name.substring(8, 18);
+                JsonObject obj = files.add<JsonObject>();
+                obj["date"] = dateStr;
+                obj["size"] = file.size();
+            } else if (name == "dataset.csv") {
+                JsonObject obj = files.add<JsonObject>();
+                obj["date"] = "today";
+                obj["size"] = file.size();
+            }
+            file = root.openNextFile();
+        }
+        String response; serializeJson(doc, response);
+        auto r = request->beginResponse(200, "application/json", response); addSecurityHeaders(r); request->send(r);
+    });
+
+    server.on("/api/dataset", HTTP_DELETE, [](AsyncWebServerRequest *request){
+        if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
+        if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401, "application/json", "{\"error\":\"No autorizado.\"}"); addSecurityHeaders(r); request->send(r); return; }
+        
+        if(!request->hasParam("date")) {
+            auto r = request->beginResponse(400, "application/json", "{\"error\":\"Falta parámetro date.\"}"); addSecurityHeaders(r); request->send(r); return;
+        }
+        
+        String dateParam = request->getParam("date")->value();
+        String fileName = (dateParam == "today") ? "/dataset.csv" : ("/dataset_" + dateParam + ".csv");
+        
+        if(LogFS.exists(fileName.c_str())) {
+            LogFS.remove(fileName.c_str());
+            String logMsg = "Dataset eliminado: " + fileName;
+            writeAuditLog("INFO", "admin", logMsg);
+            auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}"); addSecurityHeaders(r); request->send(r);
+        } else {
+            auto r = request->beginResponse(404, "application/json", "{\"error\":\"Archivo no encontrado.\"}"); addSecurityHeaders(r); request->send(r);
+        }
+    });
+
+    server.on("/api/config/storage", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
+        if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
+        JsonDocument doc; prefs.begin("data", true);
+        doc["retention"] = prefs.getInt("retention", 1);
+        prefs.end();
+        String response; serializeJson(doc, response);
+        auto r = request->beginResponse(200, "application/json", response); addSecurityHeaders(r); request->send(r);
+    });
+
+    AsyncCallbackJsonWebHandler* storageUpdateHandler = new AsyncCallbackJsonWebHandler("/api/config/storage", [](AsyncWebServerRequest *request, JsonVariant &json) {
+        if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401, "application/json", "{\"error\":\"No autorizado.\"}"); addSecurityHeaders(r); request->send(r); return; }
+        JsonObject data = json.as<JsonObject>(); prefs.begin("data", false);
+        if(data["retention"].is<int>()) prefs.putInt("retention", data["retention"].as<int>());
+        prefs.end();
+        TelemetryMgr.cleanupOldDatasets(); // Forzar limpieza
+        auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}"); addSecurityHeaders(r); request->send(r);
+    });
+    server.addHandler(storageUpdateHandler);
     
     ws.onEvent(onWsEvent); 
     server.addHandler(&ws);
@@ -562,12 +647,12 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         String role = currentSessionRole; 
         if (role == "") { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
 
-        if(!LittleFS.exists("/www/audit.csv")) {
+        if(!LogFS.exists("/audit.csv")) {
             auto r = request->beginResponse(200, "application/json", "[]");
             addSecurityHeaders(r); request->send(r); return;
         }
 
-        File file = LittleFS.open("/www/audit.csv", "r");
+        File file = LogFS.open("/audit.csv", "r");
         JsonDocument doc; JsonArray logs = doc.to<JsonArray>();
         
         if (file) {
@@ -629,8 +714,8 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         }
 
         // Si la contraseña es correcta, borramos
-        LittleFS.remove("/www/audit.csv");
-        LittleFS.remove("/www/audit_old.csv");
+        LogFS.remove("/audit.csv");
+        LogFS.remove("/audit_old.csv");
         
         writeAuditLog("CRIT", "admin", "PURGA DE LOGS DE AUDITORÍA DEL SISTEMA");
         ESP_LOGW(TAG, "SYS - Logs de auditoría borrados por el Administrador.");
@@ -658,7 +743,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         prefs.begin("wifi", true);
         doc["ap_ssid"] = prefs.getString("ap_ssid", ""); doc["ap_hide"] = prefs.getBool("ap_hide", false);
         doc["mdns"] = prefs.getString("mdns", "edgenode"); doc["ntp"] = prefs.getString("ntp", "time.google.com");
-        doc["tz"] = prefs.getString("tz", "CST6CDT,M4.1.0,M10.5.0");
+        doc["tz"] = prefs.getString("tz", "CST6");
         prefs.end();
         
         String response; serializeJson(doc, response); 
@@ -741,10 +826,22 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
         if(!isAuthorized(request, "operator")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
         JsonDocument doc; prefs.begin("sen", true);
-        doc["dht_pin"] = prefs.getInt("dht_pin", 4); doc["dht_type"] = prefs.getInt("dht_type", 22);
+        
+        JsonArray sensors = doc["sensors"].to<JsonArray>();
+        int defaultPins[5] = {4, 15, 16, 17, 18};
+        for(int i = 0; i < 5; i++) {
+            JsonObject s = sensors.add<JsonObject>();
+            String pinKey = "dht_pin_" + String(i);
+            String typeKey = "dht_type_" + String(i);
+            String offKey = "t_off_" + String(i);
+            s["pin"] = prefs.getInt(pinKey.c_str(), defaultPins[i]);
+            s["type"] = prefs.getInt(typeKey.c_str(), 22);
+            s["t_off"] = prefs.getFloat(offKey.c_str(), -0.5);
+        }
+        
         doc["adc_pin"] = prefs.getInt("adc_pin", 5); doc["adc_gnd_pin"] = prefs.getInt("adc_gnd_pin", -1);
         doc["r1"] = prefs.getFloat("r1", 100000.0);
-        doc["r2"] = prefs.getFloat("r2", 100000.0); doc["temp_offset"] = prefs.getFloat("t_off", -0.5);
+        doc["r2"] = prefs.getFloat("r2", 100000.0); 
         doc["adc_offset"] = prefs.getFloat("adc_off", 0.0); doc["adc_mult"] = prefs.getFloat("adc_mult", 1.0);
         doc["sleep_mode"] = prefs.getInt("slp_mode", 0); doc["sleep_time"] = prefs.getInt("slp_time", 60);
         doc["polling_rate"] = prefs.getInt("poll", 5000);
@@ -756,13 +853,24 @@ esp_err_t ApiServer::begin(bool oobeMode) {
     AsyncCallbackJsonWebHandler* senUpdateHandler = new AsyncCallbackJsonWebHandler("/api/config/sensors", [](AsyncWebServerRequest *request, JsonVariant &json) {
         if(!isAuthorized(request, "operator")) { auto r = request->beginResponse(401, "application/json", "{\"error\":\"No autorizado.\"}"); addSecurityHeaders(r); request->send(r); return; }
         JsonObject data = json.as<JsonObject>(); prefs.begin("sen", false);
-        if(data["dht_pin"].is<int>()) prefs.putInt("dht_pin", data["dht_pin"].as<int>());
-        if(data["dht_type"].is<int>()) prefs.putInt("dht_type", data["dht_type"].as<int>());
+        
+        if (data["sensors"].is<JsonArray>()) {
+            JsonArray sensors = data["sensors"].as<JsonArray>();
+            int i = 0;
+            for (JsonVariant s : sensors) {
+                if (i >= 5) break;
+                JsonObject sensor = s.as<JsonObject>();
+                if (sensor["pin"].is<int>()) prefs.putInt(("dht_pin_" + String(i)).c_str(), sensor["pin"].as<int>());
+                if (sensor["type"].is<int>()) prefs.putInt(("dht_type_" + String(i)).c_str(), sensor["type"].as<int>());
+                if (sensor["t_off"].is<float>()) prefs.putFloat(("t_off_" + String(i)).c_str(), sensor["t_off"].as<float>());
+                i++;
+            }
+        }
+        
         if(data["adc_pin"].is<int>()) prefs.putInt("adc_pin", data["adc_pin"].as<int>());
         if(data["adc_gnd_pin"].is<int>()) prefs.putInt("adc_gnd_pin", data["adc_gnd_pin"].as<int>());
         if(data["r1"].is<float>()) prefs.putFloat("r1", data["r1"].as<float>());
         if(data["r2"].is<float>()) prefs.putFloat("r2", data["r2"].as<float>());
-        if(data["temp_offset"].is<float>()) prefs.putFloat("t_off", data["temp_offset"].as<float>());
         if(data["adc_offset"].is<float>()) prefs.putFloat("adc_off", data["adc_offset"].as<float>());
         if(data["adc_mult"].is<float>()) prefs.putFloat("adc_mult", data["adc_mult"].as<float>());
         if(data["sleep_mode"].is<int>()) prefs.putInt("slp_mode", data["sleep_mode"].as<int>());
@@ -807,7 +915,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(data["alert_temp"].is<bool>()) prefs.putBool("a_temp", data["alert_temp"].as<bool>());
         if(data["alert_hum"].is<bool>()) prefs.putBool("a_hum", data["alert_hum"].as<bool>());
         if(data["alert_sec"].is<bool>()) prefs.putBool("a_sec", data["alert_sec"].as<bool>());
-        if(data["pass"].is<String>()) { String p = data["pass"].as<String>(); if(p != "" && p != "********") prefs.putString("pass", p); }
+        if(data["pass"].is<String>()) { String p = data["pass"].as<String>(); if(p != "" && p != "********") saveEncryptedCredential(prefs, "pass", p); }
         prefs.end(); 
         ESP_LOGI(TAG, "SYS - Configuración SMTP actualizada.");
         auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}"); addSecurityHeaders(r); request->send(r);
@@ -830,7 +938,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isAuthorized(request, "admin")) return;
         String json = "{\"enabled\":" + String(prefs.getBool("wa_en", false) ? "true" : "false") + 
                       ",\"phone\":\"" + prefs.getString("wa_phone", "") + "\"" +
-                      ",\"api_key\":\"" + prefs.getString("wa_api", "") + "\"}";
+                      ",\"api_key\":\"" + loadEncryptedCredential(prefs, "wa_api", "") + "\"}";
         auto r = request->beginResponse(200, "application/json", json); addSecurityHeaders(r); request->send(r);
     });
 
@@ -839,7 +947,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         JsonObject data = json.as<JsonObject>();
         prefs.putBool("wa_en", data["enabled"] | false);
         prefs.putString("wa_phone", data["phone"] | "");
-        prefs.putString("wa_api", data["api_key"] | "");
+        saveEncryptedCredential(prefs, "wa_api", data["api_key"].as<String>());
         writeAuditLog("WARN", currentSessionRole, "Configuración de WhatsApp alterada");
         // Registrar la creación en la auditoría
         String logMsg = "Actualización de configuración de WhatsApp. Habilitado: " + String(data["enabled"] | false ? "Sí" : "No") + "; Teléfono: " + (data["phone"].is<String>() ? data["phone"].as<String>() : "N/A");
@@ -854,7 +962,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isAuthorized(request, "admin")) return;
         String json = "{\"enabled\":" + String(prefs.getBool("cloud_en", false) ? "true" : "false") + 
                       ",\"url\":\"" + prefs.getString("cloud_url", "") + "\"" +
-                      ",\"token\":\"" + prefs.getString("cloud_auth", "") + "\"}";
+                      ",\"token\":\"" + loadEncryptedCredential(prefs, "cloud_auth", "") + "\"}";
         auto r = request->beginResponse(200, "application/json", json); addSecurityHeaders(r); request->send(r);
     });
 
@@ -863,7 +971,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         JsonObject data = json.as<JsonObject>();
         prefs.putBool("cloud_en", data["enabled"] | false);
         prefs.putString("cloud_url", data["url"] | "");
-        prefs.putString("cloud_auth", data["token"] | "");
+        saveEncryptedCredential(prefs, "cloud_auth", data["token"].as<String>());
         writeAuditLog("WARN", currentSessionRole, "Destino Cloud Webhook modificado");
         // Registrar la creación en la auditoría
         String logMsg = "Actualización de configuración de Cloud Webhook. Habilitado: " + String(data["enabled"] | false ? "Sí" : "No") + "; URL: " + (data["url"].is<String>() ? data["url"].as<String>() : "N/A");
@@ -920,7 +1028,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
         JsonDocument doc;
         doc["flash_total"] = ESP.getFlashChipSize();
-        doc["fs_total"] = LittleFS.totalBytes(); doc["fs_used"] = LittleFS.usedBytes();
+        doc["fs_total"] = LittleFS.totalBytes() + LogFS.totalBytes(); doc["fs_used"] = LittleFS.usedBytes() + LogFS.usedBytes();
         nvs_stats_t nvs_stats; esp_err_t err = nvs_get_stats(NULL, &nvs_stats);
         if (err == ESP_OK) { doc["nvs_total"] = nvs_stats.total_entries; doc["nvs_used"] = nvs_stats.used_entries; }
         else { doc["nvs_total"] = 0; doc["nvs_used"] = 0; }
@@ -955,9 +1063,65 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         // Registrar la creación en la auditoría
         String logMsg = "Formato de logs solicitado.";
         writeAuditLog("INFO", "admin", logMsg);
-        LittleFS.remove("/www/dataset.csv"); LittleFS.remove("/www/dataset_old.csv");
+        File root = LogFS.open("/");
+        File file = root.openNextFile();
+        while(file) {
+            String name = file.name();
+            if (name.startsWith("dataset") && name.endsWith(".csv")) {
+                LogFS.remove("/" + name);
+            }
+            file = root.openNextFile();
+        }
+        LogFS.remove("/audit.csv");
+        LogFS.remove("/audit_old.csv");
         auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}"); addSecurityHeaders(r); request->send(r);
     });
+
+    // --- ENDPOINT: DASHBOARD UI PREFERENCES ---
+    server.on("/api/config/dashboard", HTTP_GET, [](AsyncWebServerRequest *request) {
+        if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
+        if(!isAuthorized(request, "viewer")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
+        JsonDocument doc; prefs.begin("sen", true);
+        JsonArray zones = doc["zones"].to<JsonArray>();
+        const char* defaultColors[] = {"#F87171", "#FBBF24", "#34D399", "#60A5FA", "#A78BFA"};
+        for(int i = 0; i < 5; i++) {
+            JsonObject z = zones.add<JsonObject>();
+            String nameKey = "z" + String(i) + "_name";
+            String colKey = "z" + String(i) + "_col";
+            String ltypeKey = "z" + String(i) + "_lty";
+            String dashKey = "z" + String(i) + "_dash";
+            String dotKey = "z" + String(i) + "_dot";
+            z["name"] = prefs.getString(nameKey.c_str(), "Zona " + String(i+1));
+            z["color"] = prefs.getString(colKey.c_str(), defaultColors[i]);
+            z["lineType"] = prefs.getString(ltypeKey.c_str(), "monotone");
+            z["strokeDasharray"] = prefs.getString(dashKey.c_str(), "");
+            z["dot"] = prefs.getBool(dotKey.c_str(), false);
+        }
+        prefs.end();
+        String response; serializeJson(doc, response);
+        auto r = request->beginResponse(200, "application/json", response); addSecurityHeaders(r); request->send(r);
+    });
+
+    AsyncCallbackJsonWebHandler* uiUpdateHandler = new AsyncCallbackJsonWebHandler("/api/config/dashboard", [](AsyncWebServerRequest *request, JsonVariant &json) {
+        if(!isAuthorized(request, "operator")) { auto r = request->beginResponse(401, "application/json", "{\"error\":\"No autorizado.\"}"); addSecurityHeaders(r); request->send(r); return; }
+        JsonObject data = json.as<JsonObject>(); prefs.begin("sen", false);
+        if (data["zones"].is<JsonArray>()) {
+            JsonArray zones = data["zones"].as<JsonArray>();
+            int i = 0;
+            for (JsonVariant z_var : zones) {
+                if (i >= 5) break;
+                JsonObject z = z_var.as<JsonObject>();
+                if (z["name"].is<String>()) prefs.putString(("z" + String(i) + "_name").c_str(), z["name"].as<String>());
+                if (z["color"].is<String>()) prefs.putString(("z" + String(i) + "_col").c_str(), z["color"].as<String>());
+                if (z["lineType"].is<String>()) prefs.putString(("z" + String(i) + "_lty").c_str(), z["lineType"].as<String>());
+                if (z["strokeDasharray"].is<String>()) prefs.putString(("z" + String(i) + "_dash").c_str(), z["strokeDasharray"].as<String>());
+                if (z["dot"].is<bool>()) prefs.putBool(("z" + String(i) + "_dot").c_str(), z["dot"].as<bool>());
+                i++;
+            }
+        }
+        prefs.end();
+        auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}"); addSecurityHeaders(r); request->send(r);
+    }); server.addHandler(uiUpdateHandler);
 
     ESP_RETURN_ON_ERROR(NetMgr.setupOTAEndpoints(&server), TAG, "Failed to setup OTA endpoints");
 
@@ -973,9 +1137,14 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if (request->method() == HTTP_OPTIONS) {
             request->send(200); 
         } else {
-            auto response = request->beginResponse(LittleFS, "/www/index.html", "text/html");
-            addSecurityHeaders(response); 
-            request->send(response);
+            if(LittleFS.exists("/www/index.html") || LittleFS.exists("/www/index.html.gz")) {
+                auto response = request->beginResponse(LittleFS, "/www/index.html", "text/html");
+                addSecurityHeaders(response); 
+                request->send(response);
+            } else {
+                auto response = request->beginResponse(404, "text/html", "<h1>404 - Frontend No Instalado</h1><p>El servidor web local del ESP32 funciona, pero la aplicacion React no se encuentra en LittleFS.</p><p>Ejecute <b>pio run -t uploadfs</b> para instalar la interfaz.</p>");
+                addSecurityHeaders(response); request->send(response);
+            }
         }
     });
 
@@ -993,6 +1162,10 @@ void ApiServer::broadcastTelemetry(const String& jsonOutput) {
     if(WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED && ws.count() > 0) {
         ws.textAll(jsonOutput);
     }
+}
+
+uint32_t ApiServer::getClientCount() {
+    return ws.count();
 }
 
 ApiServer ApiSrv;

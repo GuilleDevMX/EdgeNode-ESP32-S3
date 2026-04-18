@@ -7,7 +7,7 @@ class AiManager {
 public:
     esp_err_t begin();
     bool isReady() const;
-    bool detectAnomaly(float temperature, float humidity);
+    bool detectAnomaly(float temps[5], float hums[5], float battery);
     float getLastMSE() const;
     int32_t getLastInferenceTime() const;
 

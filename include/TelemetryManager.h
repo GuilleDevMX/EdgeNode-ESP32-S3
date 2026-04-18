@@ -3,12 +3,15 @@
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <LittleFS.h>
+
+extern fs::LittleFSFS LogFS;
 
 class TelemetryManager {
 private:
     SemaphoreHandle_t sensorMutex;
-    float currentTemp;
-    float currentHum;
+    float currentTemp[5];
+    float currentHum[5];
     float currentBatVoltage;
     String currentPowerState;
 
@@ -18,9 +21,13 @@ private:
 public:
     TelemetryManager();
     esp_err_t begin();
+    
+    void cleanupOldDatasets();
 
-    float getTemperature();
-    float getHumidity();
+    float getTemperature(int index = 0);
+    float getHumidity(int index = 0);
+    float getAverageTemperature();
+    float getAverageHumidity();
     float getBatteryVoltage();
     String getPowerState();
     int getBatteryPercentage(float voltage);
