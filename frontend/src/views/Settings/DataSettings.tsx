@@ -16,6 +16,7 @@ const DataSettings = () => {
   const { token: authToken, logout } = useAuth();
   const [retention, setRetention] = useState<number>(1);
   const [isSaving, setIsSaving] = useState(false);
+  const [datasetSize, setDatasetSize] = useState<number>(0);
 
   const downloadDataset = async () => {
     if (!authToken) return;
@@ -50,6 +51,18 @@ const DataSettings = () => {
       const configData = await configRes.json();
       if (configData.retention) {
         setRetention(configData.retention);
+      }
+
+      // Consultamos el tamaño real del dataset actual ("today" o dataset.csv en LogFS)
+      const datasetsRes = await apiFetch('/api/datasets');
+      if (datasetsRes.ok) {
+        const datasetsData = await datasetsRes.json();
+        const todayFile = datasetsData.find((f: any) => f.date === 'today');
+        if (todayFile) {
+          setDatasetSize(todayFile.size);
+        } else {
+          setDatasetSize(0);
+        }
       }
     } catch (error) {
       console.error('[SecOps] Error actualizando métricas', error);
@@ -105,7 +118,7 @@ const DataSettings = () => {
               clipRule='evenodd'
             ></path>
           </svg>
-          LittleFS Montado
+          Sistemas de Archivos Montados
         </span>
       </div>
 
@@ -134,23 +147,23 @@ const DataSettings = () => {
           {storageMetrics.flash_total && (
             <div className="mb-6 p-4 bg-panel border border-border-color rounded-lg flex items-center justify-between shadow-sm">
               <span className="text-text-secondary font-bold text-sm uppercase tracking-wider">Capacidad Física Total del Chip</span>
-              <span className="text-teal-support font-black text-xl">{(storageMetrics.flash_total / (1024 * 1024)).toFixed(0)} MB <span className="text-gray-400 text-sm font-normal">(N16R8)</span></span>
+              <span className="text-teal-support font-black text-xl">{(storageMetrics.flash_total / (1024 * 1024)).toFixed(0)} MB <span className="text-muted text-sm font-normal">(N16R8)</span></span>
             </div>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* LittleFS Bar */}
+            {/* Particiones de Datos (LittleFS + LogFS) Bar */}
             <div>
               {storageMetrics.flash_total && (
               <div className="flex justify-between text-sm font-semibold text-text-secondary mb-2">
-                <span>Partición: spiffs / LittleFS</span>
+                <span>spiffs (WebApp) + logs (Telemetría)</span>
                 <span>
 
                   {(storageMetrics.fs_used / (1024 * 1024)).toFixed(2)} MB /{' '}
-                  {(storageMetrics.flash_total / (1024 * 1024)).toFixed(2)} MB (
-                  {storageMetrics.flash_total > 0
+                  {(storageMetrics.fs_total / (1024 * 1024)).toFixed(2)} MB (
+                  {storageMetrics.fs_total > 0
                     ? Math.round(
-                      (storageMetrics.fs_used / storageMetrics.flash_total) *
+                      (storageMetrics.fs_used / storageMetrics.fs_total) *
                       100,
                     )
                     : 0}
@@ -158,20 +171,19 @@ const DataSettings = () => {
                 </span>
               </div>
               )}
-              <div className="w-full bg-gray-200 rounded-full h-3">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                 {storageMetrics.flash_total && (
                 <div
 
                 className="bg-teal-support h-3 rounded-full transition-all duration-1000"
                 style={{
-                  width: `${storageMetrics.flash_total > 0 ? (storageMetrics.fs_used / storageMetrics.flash_total) * 100 : 0}%`,
+                  width: `${storageMetrics.fs_total > 0 ? (storageMetrics.fs_used / storageMetrics.fs_total) * 100 : 0}%`,
                 }}
                 ></div>
                 )}
               </div>
               <p className="text-xs text-muted mt-2">
-                Aloja el binario de esta SPA React, assets y los logs de
-                telemetría (CSV).
+                Uso combinado de partición spiffs (WebApp/Assets) y la partición extendida logs (Historial CSV).
               </p>
             </div>
 
@@ -191,7 +203,7 @@ const DataSettings = () => {
                   %)
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                 <div
                   className="bg-blue-support h-3 rounded-full transition-all duration-1000"
                   style={{
@@ -281,7 +293,7 @@ const DataSettings = () => {
                 <span className="font-mono text-text-primary font-bold">
                   dataset.csv
                 </span>{' '}
-                • Tamaño: {(storageMetrics.fs_used / 1024).toFixed(1)} KB
+                • Tamaño: {(datasetSize / 1024).toFixed(1)} KB
               </p>
             </div>
 
@@ -308,10 +320,10 @@ const DataSettings = () => {
         </section>
 
         {/* 4. ZONA DE PELIGRO (Acciones Destructivas) */}
-        <section className="card p-6 border-red-200">
-          <div className="flex items-center gap-2 mb-4 border-b border-red-200 pb-2">
+        <section className="card p-6 border-red-200 dark:border-red-800">
+          <div className="flex items-center gap-2 mb-4 border-b border-red-200 dark:border-red-800 pb-2">
             <svg
-              className="w-5 h-5 text-red-600"
+              className="w-5 h-5 text-red-600 dark:text-red-400"
               fill='none'
               stroke='currentColor'
               viewBox='0 0 24 24'
@@ -323,7 +335,7 @@ const DataSettings = () => {
                 d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
               ></path>
             </svg>
-            <h4 className="text-lg font-bold text-red-800">
+            <h4 className="text-lg font-bold text-red-800 dark:text-red-300">
               Zona de Peligro: Acciones Destructivas
             </h4>
           </div>

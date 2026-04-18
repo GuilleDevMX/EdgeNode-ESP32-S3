@@ -150,6 +150,26 @@ void setup() {
 void loop() {
     NetMgr.handleLoop();    
     static unsigned long lastTelemetry = 0;
+    
+    // --- Power Management: Dynamic Frequency Scaling (DFS) ---
+    static bool isLowPowerMode = false;
+    uint32_t activeClients = ApiSrv.getClientCount();
+    
+    // Solo permitir DFS si estamos en modo Estación (operativo) y aprovisionados.
+    // El modo AP (Captive Portal u OOBE) requiere alto rendimiento para servir la UI.
+    bool canEnterLowPower = SecMgr.isProvisioned() && (WiFi.getMode() == WIFI_STA);
+    
+    if (activeClients == 0 && !isLowPowerMode && millis() > 15000 && canEnterLowPower) {
+        setCpuFrequencyMhz(80);
+        isLowPowerMode = true;
+        ESP_LOGI(TAG, "PWR - Entrando en Modo Bajo Consumo (80MHz). 0 clientes WS activos.");
+    } else if ((activeClients > 0 || !canEnterLowPower) && isLowPowerMode) {
+        setCpuFrequencyMhz(240);
+        isLowPowerMode = false;
+        ESP_LOGI(TAG, "PWR - Saliendo de Modo Bajo Consumo (240MHz).");
+    }
+    // ---------------------------------------------------------
+
     if (millis() - lastTelemetry > 5000) {
         lastTelemetry = millis();
         JsonDocument doc; 

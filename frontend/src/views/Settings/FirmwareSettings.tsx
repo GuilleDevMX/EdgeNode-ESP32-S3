@@ -87,7 +87,7 @@ const FirmwareSettings = () => {
         {/* 1. INFORMACIÓN DEL SISTEMA */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="card p-4 shadow-sm flex items-start gap-3">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded">
+            <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded">
               <svg
                 className="w-6 h-6"
                 fill='none'
@@ -116,7 +116,7 @@ const FirmwareSettings = () => {
           </div>
 
           <div className="card p-4 shadow-sm flex items-start gap-3">
-            <div className="p-2 bg-orange-50 text-orange-600 rounded">
+            <div className="p-2 bg-orange-50 text-orange-600 dark:text-orange-400 rounded">
               <svg
                 className="w-6 h-6"
                 fill='none'
@@ -143,7 +143,7 @@ const FirmwareSettings = () => {
           </div>
 
           <div className="card p-4 shadow-sm flex items-start gap-3">
-            <div className="p-2 bg-purple-50 text-purple-600 rounded">
+            <div className="p-2 bg-purple-50 text-purple-600 dark:text-purple-400 rounded">
               <svg
                 className="w-6 h-6"
                 fill='none'
@@ -166,7 +166,7 @@ const FirmwareSettings = () => {
                 anomaly_net.tflite
               </p>
               <p
-                className={`text-xs font-mono mt-1 font-bold ${sysInfo.ml_status.includes('Activo') ? 'text-green-600' : 'text-red-500'}`}
+                className={`text-xs font-mono mt-1 font-bold ${sysInfo.ml_status.includes('Activo') ? 'text-green-600' : 'text-red-500 dark:text-red-400'}`}
               >
                 Estado: {sysInfo.ml_status}
               </p>
@@ -195,7 +195,7 @@ const FirmwareSettings = () => {
             </h4>
           </div>
 
-          <div className="border-2 border-dashed border-border-color rounded-lg p-8 text-center bg-panel hover:bg-indigo-50/50 transition-colors cursor-pointer">
+          <div className="border-2 border-dashed border-border-color rounded-lg p-8 text-center bg-panel hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer">
             <svg
               className="mx-auto h-12 w-12 text-text-primary mb-3"
               fill='none'

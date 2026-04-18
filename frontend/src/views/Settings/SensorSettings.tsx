@@ -324,7 +324,7 @@ const SensorSettings = () => {
                   <option value={0}>Siempre Encendido</option>
                   <option value={1}>Deep Sleep</option>
                 </select>
-                <p className="text-[10px] text-red-500 font-bold mt-1">
+                <p className="text-[10px] text-red-500 dark:text-red-400 font-bold mt-1">
                   Deep Sleep apaga el Servidor Web y REST API.
                 </p>
               </div>

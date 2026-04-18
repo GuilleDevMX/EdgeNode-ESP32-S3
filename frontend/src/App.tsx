@@ -38,7 +38,7 @@ export default function App() {
 
   if (isProvisioned === null) {
     return (
-      <div className='min-h-screen bg-gray-900 flex flex-col items-center justify-center font-mono text-gray-500'>
+      <div className='min-h-screen bg-app flex flex-col items-center justify-center font-mono text-muted'>
         <div className='w-8 h-8 border-4 border-gray-800 border-t-blue-500 rounded-full animate-spin mb-4'></div>
         <p className='animate-pulse'>Sondeando hardware...</p>
       </div>

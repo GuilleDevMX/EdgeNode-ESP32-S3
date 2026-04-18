@@ -107,14 +107,14 @@ const UserSettings = () => {
                   usersList.map((user, idx) => (
                     <tr
                       key={idx}
-                      className='hover:bg-indigo-50/50 hover:text-secundary transition-colors'
+                      className='hover:bg-black/5 dark:hover:bg-white/5 hover:text-secundary transition-colors'
                     >
                       <td className='px-6 py-4 font-bold text-text-primary'>
                         {user.username}
                       </td>
                       <td className='px-6 py-4'>
                         <span
-                          className={`border text-xs px-2 py-1 rounded font-bold ${user.role === 'admin' ? 'bg-red-50 text-red-700 border-red-200' : user.role === 'operator' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-700 border-gray-200'}`}
+                          className={`border text-xs px-2 py-1 rounded font-bold ${user.role === 'admin' ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800' : user.role === 'operator' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800' : 'bg-gray-50 dark:bg-gray-800/50 text-text-secondary border-gray-200 dark:border-gray-700'}`}
                         >
                           {user.role === 'admin'
                             ? 'Root'
@@ -128,7 +128,7 @@ const UserSettings = () => {
                       </td>
                       <td className='px-6 py-4 text-right'>
                         <button
-                          className={`transition-colors ${user.role === 'admin' ? 'text-gray-400 cursor-not-allowed' : 'text-red-500 hover:text-red-700'}`}
+                          className={`transition-colors ${user.role === 'admin' ? 'text-muted cursor-not-allowed' : 'text-red-500 dark:text-red-400 hover:text-red-700 dark:text-red-400'}`}
                           title={
                             user.role === 'admin'
                               ? 'El usuario Root no puede ser eliminado'
@@ -297,7 +297,7 @@ const UserSettings = () => {
           </div>
           <div className='grid grid-cols-1 md:grid-cols-3 gap-4 text-sm'>
             <div className='card-user-role'>
-              <p className='font-bold text-red-700 mb-1'>Root / Admin</p>
+              <p className='font-bold text-red-700 dark:text-red-400 mb-1'>Root / Admin</p>
               <ul className='text-text-secondary space-y-1 list-disc list-inside'>
                 <li>Gestión de Red y WiFi</li>
                 <li>Rotación de llaves JWT</li>
@@ -306,7 +306,7 @@ const UserSettings = () => {
               </ul>
             </div>
             <div className='card-user-role'>
-              <p className='font-bold text-blue-700 mb-1'>Operador</p>
+              <p className='font-bold text-blue-700 dark:text-blue-400 mb-1'>Operador</p>
               <ul className='text-text-secondary space-y-1 list-disc list-inside'>
                 <li>Descarga de Dataset (CSV)</li>
                 <li>Calibración de Sensores</li>
@@ -314,7 +314,7 @@ const UserSettings = () => {
               </ul>
             </div>
             <div className='card-user-role'>
-              <p className='font-bold text-gray-700 mb-1'>Visor</p>
+              <p className='font-bold text-text-secondary mb-1'>Visor</p>
               <ul className='text-text-secondary space-y-1 list-disc list-inside'>
                 <li>Visualización de Dashboard en tiempo real</li>
                 <li>Estado de recursos (SRAM/Uptime)</li>

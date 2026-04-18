@@ -10,6 +10,7 @@ const ApiSettings = () => {
   const [newApiKey, setNewApiKey] = useState({ name: '', expiration: '30' })
   const [apiKeysList, setApiKeysList] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [openSection, setOpenSection] = useState<number | null>(0)
 
   useEffect(() => {
     apiFetch('/api/keys')
@@ -77,7 +78,7 @@ const ApiSettings = () => {
             API v1.1 Operativa
           </span>
           <div
-            className={`flex items-center gap-2 text-xs font-bold uppercase ${sysTime.getFullYear() > 2000 ? 'text-teal-600' : 'text-red-500 animate-pulse'}`}
+            className={`flex items-center gap-2 text-xs font-bold uppercase ${sysTime.getFullYear() > 2000 ? 'text-teal-600' : 'text-red-500 dark:text-red-400 animate-pulse'}`}
           >
             <div
               className={`w-2 h-2 rounded-full ${sysTime.getFullYear() > 2000 ? 'bg-teal-600' : 'bg-red-500'}`}
@@ -175,7 +176,7 @@ const ApiSettings = () => {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-panel">
+              <tbody className="divide-y divide-border-color bg-panel">
                 {loading ? (
                   <tr>
                     <td colSpan={4} className="p-0">
@@ -190,10 +191,10 @@ const ApiSettings = () => {
                   </tr>
                 ) : (
                   apiKeysList.map((key, idx) => (
-                    <tr key={idx} className="hover:bg-indigo-50/50 transition-colors">
+                    <tr key={idx} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
                       <td className="px-4 py-3 font-bold text-text-primary">{key.name}</td>
                       <td className="px-4 py-3 font-mono text-xs text-muted">
-                        <span className="bg-app rounded border border-gray-100 px-2 py-1">
+                        <span className="bg-app rounded border border-border-color px-2 py-1">
                           {key.prefix}••••••••••
                         </span>
                       </td>
@@ -201,7 +202,7 @@ const ApiSettings = () => {
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => handleRevokeApiKey(key.id)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded transition-colors"
+                          className="text-red-500 dark:text-red-400 hover:text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded transition-colors"
                           title="Revocar Token"
                         >
                           <svg
@@ -246,7 +247,7 @@ const ApiSettings = () => {
               </svg>
               <h4 className="text-lg font-bold text-text-primary">Referencia de Endpoints RESTful</h4>
             </div>
-            <div className="bg-yellow-50 text-yellow-800 border border-yellow-200 p-2 rounded text-xs overflow-x-auto">
+            <div className="bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800 p-2 rounded text-xs overflow-x-auto">
               <span className="font-bold">Auth Header:</span>{' '}
               <code className="px-1 rounded whitespace-nowrap">
                 Authorization: Bearer &lt;TOKEN&gt;
@@ -254,7 +255,7 @@ const ApiSettings = () => {
             </div>
           </div>
 
-          <div className="space-y-8">
+          <div className="space-y-4">
             {[
               {
                 category: 'Extracción de Datos & Telemetría',
@@ -265,6 +266,20 @@ const ApiSettings = () => {
                     path: '/api/dataset',
                     roles: ['Admin', 'Operador', 'API Key'],
                     desc: 'Descarga del log histórico completo en formato CSV (Raw Data).',
+                    payload: null,
+                  },
+                  {
+                    method: 'DEL',
+                    path: '/api/dataset',
+                    roles: ['Admin'],
+                    desc: 'Borra un día específico de la telemetría histórica.',
+                    payload: '?date=YYYY-MM-DD',
+                  },
+                  {
+                    method: 'GET',
+                    path: '/api/datasets',
+                    roles: ['Admin', 'Operador', 'API Key'],
+                    desc: 'Obtiene lista de fechas disponibles en el dataset histórico.',
                     payload: null,
                   },
                   {
@@ -302,10 +317,17 @@ const ApiSettings = () => {
                     desc: 'Gestión de Tokens M2M (Service Accounts). Límite de 5 llaves activas.',
                     payload: '{"name": "str", "expiration": "30|180|never"}',
                   },
+                  {
+                    method: 'POST',
+                    path: '/api/system/rotate_key',
+                    roles: ['Admin'],
+                    desc: 'Rota la clave JWT secreta, forzando la desconexión de todos los clientes (Logout Global).',
+                    payload: 'Ninguno',
+                  },
                 ],
               },
               {
-                category: 'Configuración del Hardware (State)',
+                category: 'Configuración del Sistema',
                 icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
                 endpoints: [
                   {
@@ -320,7 +342,7 @@ const ApiSettings = () => {
                     path: '/api/config/security',
                     roles: ['Admin'],
                     desc: 'Configuración del Firewall L3 (Allowlist IP) y TTL de sesiones JWT.',
-                    payload: '{"allowlist_enabled": bool, "allowlist": "ip1\\nip2"}',
+                    payload: '{"allowlist_enabled": bool, "allowlist": "ip1\nip2"}',
                   },
                   {
                     method: 'GET/POST',
@@ -336,7 +358,6 @@ const ApiSettings = () => {
                     desc: 'Credenciales del servidor de correos y envolvente operacional (Umbrales de alarma).',
                     payload: '{"host": "str", "t_max": float, "alert_temp": bool}',
                   },
-                  /* ⚠️ NUEVOS ENDPOINTS AÑADIDOS AQUÍ ⚠️ */
                   {
                     method: 'GET/POST',
                     path: '/api/config/whatsapp',
@@ -350,6 +371,27 @@ const ApiSettings = () => {
                     roles: ['Admin'],
                     desc: 'Sincronización M2M: Webhook HTTPS para inyectar telemetría directa a Bases de Datos en la nube.',
                     payload: '{"enabled": bool, "url": "str", "token": "str"}',
+                  },
+                  {
+                    method: 'GET/POST',
+                    path: '/api/config/storage',
+                    roles: ['Admin'],
+                    desc: 'Configura la retención en meses de los datos históricos.',
+                    payload: '{"retention": int}',
+                  },
+                  {
+                    method: 'GET/POST',
+                    path: '/api/config/power',
+                    roles: ['Admin'],
+                    desc: 'Ajusta el modo de suspensión del dispositivo para ahorro de energía.',
+                    payload: '{"slp_mode": int, "slp_time": int}',
+                  },
+                  {
+                    method: 'GET/POST',
+                    path: '/api/config/dashboard',
+                    roles: ['Visor (GET)', 'Operador (POST)'],
+                    desc: 'Guarda o recupera la personalización de las zonas en la interfaz web.',
+                    payload: '{"zones": [{...}]}',
                   },
                 ],
               },
@@ -401,6 +443,27 @@ const ApiSettings = () => {
                   },
                   {
                     method: 'GET',
+                    path: '/api/system/logs',
+                    roles: ['Admin'],
+                    desc: 'Retorna los logs de auditoría de seguridad del sistema en formato CSV.',
+                    payload: null,
+                  },
+                  {
+                    method: 'POST',
+                    path: '/api/system/logs/clear',
+                    roles: ['Admin'],
+                    desc: 'Limpia el archivo de log de auditoría (rotación manual).',
+                    payload: 'Ninguno',
+                  },
+                  {
+                    method: 'POST',
+                    path: '/api/system/test_email',
+                    roles: ['Admin'],
+                    desc: 'Envia un correo de prueba usando la configuración SMTP actual.',
+                    payload: 'Ninguno',
+                  },
+                  {
+                    method: 'GET',
                     path: '/api/health',
                     roles: ['Público'],
                     desc: 'Healthcheck rápido. Retorna Uptime, Heap y calidad WiFi.',
@@ -416,76 +479,84 @@ const ApiSettings = () => {
                 ],
               },
             ].map((group, gIdx) => (
-              <div key={gIdx} className="mb-6">
-                <h5 className="flex items-center gap-2 font-bold text-text-primary mb-3 border-b border-gray-100 pb-2">
-                  <svg
-                    className="w-5 h-5 text-muted shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d={group.icon}
-                    ></path>
-                  </svg>
-                  {group.category}
-                </h5>
-                <div className="space-y-3">
-                  {group.endpoints.map((ep, eIdx) => (
-                    <div
-                      key={eIdx}
-                      className="group flex flex-col lg:flex-row gap-4 items-start lg:items-center p-4 bg-app hover:bg-indigo-950/100  rounded-lg border border-border-color shadow-sm transition-all hover:shadow-md"
+              <div key={gIdx} className="mb-4 bg-panel border border-border-color rounded-lg overflow-hidden">
+                <button 
+                  onClick={() => setOpenSection(openSection === gIdx ? null : gIdx)}
+                  className="w-full flex items-center justify-between p-4 bg-app hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                >
+                  <h5 className="flex items-center gap-2 font-bold text-text-primary">
+                    <svg
+                      className="w-5 h-5 text-muted shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      {/* Método y Ruta */}
-                      <div className="flex items-center gap-3 w-full lg:w-64 shrink-0">
-                        <span
-                          className={`font-bold px-2 py-1 rounded text-[10px] w-16 text-center tracking-widest shrink-0 ${ ep.method.includes('GET') ? 'bg-blue-100 text-blue-800' : ep.method.includes('POST') ? 'bg-green-100 text-green-800' : ep.method.includes('DEL') ? 'bg-red-100 text-red-800' : ep.method.includes('WS') ? 'bg-purple-100 text-purple-800' : 'bg-gray-200 text-gray-800' }`}
-                        >
-                          {ep.method}
-                        </span>
-                        <span
-                          className="font-mono text-sm text-text-primary font-bold truncate cursor-pointer hover:text-orange-accent"
-                          title="Click para copiar"
-                          onClick={() => {
-                            navigator.clipboard.writeText(ep.path)
-                            toast.success(`Ruta ${ep.path} copiada`)
-                          }}
-                        >
-                          {ep.path}
-                        </span>
-                      </div>
-
-                      {/* Descripción y Payload */}
-                      <div className="flex-1 flex flex-col gap-1 w-full min-w-0">
-                        <span className="text-sm text-text-secondary leading-tight">{ep.desc}</span>
-                        {ep.payload && (
-                          <div className="mt-1 flex items-start gap-1">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase mt-0.5 shrink-0">
-                              Payload:
-                            </span>
-                            <code className="text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-100 font-mono break-all">
-                              {ep.payload}
-                            </code>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Roles */}
-                      <div className="shrink-0 flex flex-wrap gap-1 lg:w-48 lg:justify-end">
-                        {ep.roles.map((role, rIdx) => (
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d={group.icon}
+                      ></path>
+                    </svg>
+                    {group.category} <span className="ml-2 text-xs bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 py-0.5 px-2 rounded-full">{group.endpoints.length} APIs</span>
+                  </h5>
+                  <svg className={`w-5 h-5 text-text-secondary transition-transform ${openSection === gIdx ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <div className={`transition-all duration-300 ease-in-out ${openSection === gIdx ? 'max-h-[5000px] opacity-100 p-4 border-t border-border-color' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+                  <div className="space-y-3">
+                    {group.endpoints.map((ep, eIdx) => (
+                      <div
+                        key={eIdx}
+                        className="group flex flex-col lg:flex-row gap-4 items-start lg:items-center p-4 bg-app hover:bg-black/5 dark:hover:bg-white/5 rounded-lg border border-border-color shadow-sm transition-all hover:shadow-md"
+                      >
+                        {/* Método y Ruta */}
+                        <div className="flex items-center gap-3 w-full lg:w-64 shrink-0">
                           <span
-                            key={rIdx}
-                            className={`text-[10px] font-bold px-2 py-1 rounded border whitespace-nowrap ${ role === 'Admin' ? 'bg-red-50 text-red-700 border-red-100' : role === 'Operador' ? 'bg-blue-50 text-blue-700 border-blue-100' : role === 'Público' ? 'bg-gray-100 text-muted border-gray-200' : role === 'API Key' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-gray-50 text-gray-700 border-gray-200' }`}
+                            className={`font-bold px-2 py-1 rounded text-[10px] w-16 text-center tracking-widest shrink-0 ${ ep.method.includes('GET') ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 dark:text-blue-300 dark:text-blue-200' : ep.method.includes('POST') ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : ep.method.includes('DEL') ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : ep.method.includes('WS') ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:bg-gray-800 dark:text-muted' }`}
                           >
-                            {role}
+                            {ep.method}
                           </span>
-                        ))}
+                          <span
+                            className="font-mono text-sm text-text-primary font-bold truncate cursor-pointer hover:text-orange-accent"
+                            title="Click para copiar"
+                            onClick={() => {
+                              navigator.clipboard.writeText(ep.path)
+                              toast.success(`Ruta ${ep.path} copiada`)
+                            }}
+                          >
+                            {ep.path}
+                          </span>
+                        </div>
+
+                        {/* Descripción y Payload */}
+                        <div className="flex-1 flex flex-col gap-1 w-full min-w-0">
+                          <span className="text-sm text-text-secondary leading-tight">{ep.desc}</span>
+                          {ep.payload && (
+                            <div className="mt-1 flex items-start gap-1">
+                              <span className="text-[10px] font-bold text-muted uppercase mt-0.5 shrink-0">
+                                Payload:
+                              </span>
+                              <code className="text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded border border-green-100 font-mono break-all cursor-pointer hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/50 transition-colors" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(ep.payload || ''); toast.success('Payload copiado al portapapeles'); }} title="Click para copiar payload">
+                                {ep.payload}
+                              </code>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Roles */}
+                        <div className="shrink-0 flex flex-wrap gap-1 lg:w-48 lg:justify-end">
+                          {ep.roles.map((role, rIdx) => (
+                            <span
+                              key={rIdx}
+                              className={`text-[10px] font-bold px-2 py-1 rounded border whitespace-nowrap ${ role === 'Admin' ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' : role === 'Operador' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 dark:text-blue-300 dark:text-blue-200 border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800' : role === 'Público' ? 'bg-gray-100 dark:bg-gray-800 text-muted border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-border-color' : role === 'API Key' ? 'bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800' : 'bg-gray-50 dark:bg-gray-800/50 text-text-secondary border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-border-color' }`}
+                            >
+                              {role}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             ))}
@@ -493,7 +564,7 @@ const ApiSettings = () => {
         </section>
 
         {/* 3. EJEMPLO DE INTEGRACIÓN (cURL) */}
-        <section className="bg-navy-dark p-4 md:p-6 rounded-lg shadow-xl relative overflow-hidden">
+        <section className="bg-slate-900 p-4 md:p-6 rounded-lg shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 opacity-5 pointer-events-none">
             <svg
               width="200"
@@ -507,7 +578,7 @@ const ApiSettings = () => {
             </svg>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 border-b border-gray-700 pb-3 gap-3 relative z-10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 border-b border-border-color pb-3 gap-3 relative z-10">
             <h4 className="text-lg font-bold text-white flex items-center gap-2">
               <svg
                 className="w-5 h-5 text-orange-accent"
@@ -531,7 +602,7 @@ const ApiSettings = () => {
                 )
                 toast.success('Comando copiado al portapapeles')
               }}
-              className="text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded text-xs font-bold transition-colors shadow self-start sm:self-auto"
+              className="text-muted hover:text-white bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded text-xs font-bold transition-colors shadow self-start sm:self-auto"
             >
               Copiar Código
             </button>
@@ -540,7 +611,7 @@ const ApiSettings = () => {
           <div className="bg-[#0D0D14] p-4 md:p-5 rounded-lg font-mono text-sm overflow-x-auto custom-scrollbar shadow-inner relative z-10 border border-gray-800">
             <p className="text-gray-300 whitespace-nowrap">
               <span className="text-pink-500 font-bold">curl</span>{' '}
-              <span className="text-blue-400">-X</span> GET \
+              <span className="text-blue-400 dark:text-blue-300 dark:text-blue-200">-X</span> GET \
             </p>
             <p className="pl-4 text-green-300 whitespace-nowrap">
               http://
@@ -548,7 +619,7 @@ const ApiSettings = () => {
               /api/dataset \
             </p>
             <p className="pl-4 text-gray-300 whitespace-nowrap">
-              <span className="text-blue-400">-H</span>{' '}
+              <span className="text-blue-400 dark:text-blue-300 dark:text-blue-200">-H</span>{' '}
               <span className="text-yellow-300">
                 'Authorization: Bearer{' '}
                 <span className="text-white font-bold bg-white/10 px-1 rounded">
@@ -559,10 +630,10 @@ const ApiSettings = () => {
               \
             </p>
             <p className="pl-4 text-gray-300 whitespace-nowrap">
-              <span className="text-blue-400">--output</span> dataset_$(date +%s).csv
+              <span className="text-blue-400 dark:text-blue-300 dark:text-blue-200">--output</span> dataset_$(date +%s).csv
             </p>
           </div>
-          <p className="text-xs text-gray-400 mt-4 font-sans relative z-10 border-l-2 border-orange-accent pl-3">
+          <p className="text-xs text-muted mt-4 font-sans relative z-10 border-l-2 border-orange-accent pl-3">
             Implemente este comando en un{' '}
             <code className="text-gray-300 bg-gray-800 px-1 rounded">CronJob</code> de Linux o un
             script de Python (con la librería{' '}

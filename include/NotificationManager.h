@@ -22,8 +22,6 @@ private:
     
     // Callbacks y Helpers
     static void smtpCallback(SMTP_Status status);
-    void saveEncryptedCredential(const char* key, const String& value);
-    String loadEncryptedCredential(const char* key, const String& defaultValue = "");
 
 public:
     NotificationManager();

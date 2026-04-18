@@ -1,5 +1,6 @@
 #include "CryptoUtils.h"
 #include <esp_log.h>
+#include <esp_mac.h>
 
 static const char* TAG = "CryptoUtils";
 
@@ -61,10 +62,13 @@ String generateRandomHex(size_t length) {
 
 void deriveKeyFromMAC(uint8_t* outKey) {
     uint8_t mac[6];
-    esp_wifi_get_mac(WIFI_IF_STA, mac);
-    // Expandir 6 bytes a 16 con mezcla determinística + entropía
+    // Usar la función de lectura de MAC de eFuse en lugar de WiFi para que esté siempre disponible
+    if (esp_read_mac(mac, ESP_MAC_WIFI_STA) != ESP_OK) {
+        memset(mac, 0, 6);
+    }
+    // Expandir 6 bytes a 16 con mezcla determinística y un salt estático en lugar de esp_random()
     for(int i = 0; i < 16; i++) {
-        outKey[i] = mac[i % 6] ^ (i * 0x9E) ^ (esp_random() & 0xFF);
+        outKey[i] = mac[i % 6] ^ (i * 0x9E) ^ 0xA5; // 0xA5 es el salt estático
     }
 }
 
@@ -85,7 +89,8 @@ String encryptCredential(const String& plaintext) {
     
     // Padding PKCS7
     size_t len = plaintext.length();
-    size_t paddedLen = ((len + 15) / 16) * 16;
+    uint8_t padding = 16 - (len % 16);
+    size_t paddedLen = len + padding;
     uint8_t* buffer = new uint8_t[paddedLen];
     if (!buffer) {
         ESP_LOGE(TAG, "Fallo al asignar memoria para encriptación");
@@ -93,8 +98,8 @@ String encryptCredential(const String& plaintext) {
         return "";
     }
     
-    memset(buffer, 0, paddedLen);
     memcpy(buffer, plaintext.c_str(), len);
+    memset(buffer + len, padding, padding);
     
     // Encriptar bloque por bloque (ECB mode)
     for(size_t i = 0; i < paddedLen; i += 16) {
@@ -162,10 +167,15 @@ String decryptCredential(const String& encryptedHex) {
     // Remover padding PKCS7
     uint8_t padding = buffer[encryptedLen - 1];
     if (padding > 16 || padding == 0) {
-        ESP_LOGW(TAG, "Padding PKCS7 inválido");
+        // En lugar de fallar y devolver string vacío (que rompe el OOBE y el NVS), 
+        // asumimos que no tenía padding válido y devolvemos el string crudo hasta el primer null terminator.
+        // Esto permite la retrocompatibilidad con strings que se guardaron accidentalmente sin padding correcto.
+        ESP_LOGW(TAG, "Padding PKCS7 inválido. Usando texto crudo por retrocompatibilidad.");
+        size_t rawLen = strnlen((char*)buffer, encryptedLen);
+        String result = String((char*)buffer, rawLen);
         delete[] buffer;
         mbedtls_aes_free(&aes);
-        return "";
+        return result;
     }
     
     size_t originalLen = encryptedLen - padding;
@@ -186,4 +196,25 @@ String sanitizeEmailField(const String& input) {
     sanitized.replace("%0D", "");
     sanitized.replace("%0A", "");
     return sanitized;
+}
+
+String loadEncryptedCredential(Preferences& prefs, const char* key, const char* defaultVal) {
+    String val = prefs.getString(key, "");
+    if (val == "") return defaultVal;
+    String decrypted = decryptCredential(val);
+    if (decrypted == "") return val; // Fallback a texto plano
+    return decrypted;
+}
+
+void saveEncryptedCredential(Preferences& prefs, const char* key, const String& plaintext) {
+    if (plaintext == "") {
+        prefs.putString(key, "");
+        return;
+    }
+    String encrypted = encryptCredential(plaintext);
+    if (encrypted != "") {
+        prefs.putString(key, encrypted);
+    } else {
+        prefs.putString(key, plaintext); // Fallback a texto plano en caso de fallo crítico de cifrado
+    }
 }

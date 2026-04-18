@@ -382,7 +382,7 @@ void TelemetryManager::sensorTask(void *parameter) {
         float avg_t = mgr->getAverageTemperature();
         float avg_h = mgr->getAverageHumidity();
 
-        if (!isnan(avg_t) && !isnan(avg_h) && AiMgr.detectAnomaly(avg_t, avg_h)) {
+        if (AiMgr.detectAnomaly(t_vals, h_vals, batVoltage)) {
             float mse = AiMgr.getLastMSE();
             ESP_LOGW(TAG, "🤖 TinyML - ¡ANOMALÍA DETECTADA! MSE: %f", mse);
             
@@ -390,11 +390,12 @@ void TelemetryManager::sensorTask(void *parameter) {
             unsigned long now = millis();
             if (now - lastAiAlertTime > 3600000 || lastAiAlertTime == 0) { 
                 String aiMsg = "<b>¡ALERTA PREDICTIVA DE IA (AUTOENCODER)!</b><br><br>"
-                               "El modelo ha detectado un comportamiento ambiental anómalo.<br><br>"
+                               "El modelo de 11 variables ha detectado un patrón anómalo (sensores o energía).<br><br>"
                                "<b>Temperatura Media:</b> " + String(avg_t, 1) + " °C<br>"
                                "<b>Humedad Media:</b> " + String(avg_h, 1) + " %<br>"
-                               "<b>MSE:</b> " + String(mse, 4) + "<br><br>"
-                               "<i>Inspección física requerida.</i>";
+                               "<b>Voltaje Sistema:</b> " + String(batVoltage, 2) + " V<br>"
+                               "<b>Nivel de Anomalía (MSE):</b> " + String(mse, 4) + "<br><br>"
+                               "<i>Inspección física requerida inmediatamente.</i>";
                 NotifMgr.sendEmail("🤖 ALERTA PREDICTIVA: Anomalía", aiMsg);
                 lastAiAlertTime = now;
             }

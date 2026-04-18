@@ -292,7 +292,7 @@ const Dashboard = () => {
 
   if (!telemetry && status === 'connecting') {
     return (
-      <div className='min-h-[500px] flex flex-col items-center justify-center font-mono text-gray-500'>
+      <div className='min-h-[500px] flex flex-col items-center justify-center font-mono text-muted'>
         <Loader fullScreen={true} />
         <p className='animate-pulse mt-4'>Esperando datos del nodo...</p>
       </div>
@@ -317,11 +317,11 @@ const Dashboard = () => {
     <div className='space-y-6 animate-fade-in'>
       {/* BANNER DE ALERTAS DINÁMICAS */}
       {(isTempCritical || isBatCritical) && (
-        <div className='bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-sm flex items-start gap-4 animate-pulse'>
+        <div className='bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-4 rounded-lg shadow-sm flex items-start gap-4 animate-pulse'>
           <svg className='w-6 h-6 text-red-600 shrink-0 mt-0.5' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'></path></svg>
           <div>
             <h3 className='text-red-800 font-bold'>Intervención Requerida</h3>
-            <p className='text-red-700 text-sm mt-1'>
+            <p className='text-red-700 dark:text-red-400 text-sm mt-1'>
               {isTempCritical && '🔥 Sobrecalentamiento detectado en al menos una zona. '}
               {isBatCritical && '🔋 Batería en nivel crítico. Conecte alimentación. '}
             </p>
@@ -332,7 +332,7 @@ const Dashboard = () => {
       {/* TOOLBAR DE ANÁLISIS */}
       <div className='flex flex-col md:flex-row justify-between items-center gap-4 bg-panel p-3 rounded-lg border border-border-color shadow-sm'>
         <h3 className='font-bold text-primary flex items-center gap-2'>
-          <svg className='w-5 h-5 text-blue-600' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z'></path></svg>
+          <svg className='w-5 h-5 text-blue-600 dark:text-blue-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z'></path></svg>
           Centro de Inteligencia Operacional
         </h3>
         <div className='flex items-center gap-4'>
@@ -411,7 +411,7 @@ const Dashboard = () => {
           <div className='flex items-end gap-3 mt-2'>
             <p className='text-3xl font-bold text-primary'>{stats?.t_mean || '--'} <span className='text-lg'>°C</span></p>
           </div>
-          <div className='absolute inset-x-0 bottom-0 bg-orange-50 h-0 group-hover:h-8 transition-all flex items-center justify-around px-2 opacity-0 group-hover:opacity-100 text-[10px] font-bold text-orange-800'>
+          <div className='absolute inset-x-0 bottom-0 bg-orange-50 h-0 group-hover:h-8 transition-all flex items-center justify-around px-2 opacity-0 group-hover:opacity-100 text-[10px] font-bold text-orange-800 dark:text-orange-300'>
             <span>MAX: {stats?.t_max || '--'}°C</span>
             <span>MIN: {stats?.t_min || '--'}°C</span>
           </div>
@@ -422,7 +422,7 @@ const Dashboard = () => {
           <div className='flex items-end gap-3 mt-2'>
             <p className='text-3xl font-bold text-primary'>{stats?.h_mean || '--'} <span className='text-lg'>%</span></p>
           </div>
-          <div className='absolute inset-x-0 bottom-0 bg-blue-50 h-0 group-hover:h-8 transition-all flex items-center justify-around px-2 opacity-0 group-hover:opacity-100 text-[10px] font-bold text-blue-800'>
+          <div className='absolute inset-x-0 bottom-0 bg-blue-50 dark:bg-blue-900/30 h-0 group-hover:h-8 transition-all flex items-center justify-around px-2 opacity-0 group-hover:opacity-100 text-[10px] font-bold text-blue-800 dark:text-blue-300'>
             <span>MAX: {stats?.h_max || '--'}%</span>
             <span>MIN: {stats?.h_min || '--'}%</span>
           </div>
@@ -435,12 +435,12 @@ const Dashboard = () => {
           </div>
           <div className='flex items-baseline gap-2 mt-2'>
             <p className='text-3xl font-bold text-primary'>{telemetry?.battery_v?.toFixed(2) || '--'} <span className='text-lg'>V</span></p>
-            <p className={`text-[10px] uppercase font-bold ${telemetry?.power_state === 'Charging' ? 'text-orange-600 animate-pulse' : telemetry?.power_state === 'Charged' ? 'text-green-600' : 'text-secondary'}`}>
+            <p className={`text-[10px] uppercase font-bold ${telemetry?.power_state === 'Charging' ? 'text-orange-600 dark:text-orange-400 animate-pulse' : telemetry?.power_state === 'Charged' ? 'text-green-600' : 'text-secondary'}`}>
               {telemetry?.power_state === 'Charging' ? 'Cargando' : telemetry?.power_state === 'Charged' ? 'Full' : 'Batería'}
             </p>
           </div>
-          <div className='w-full bg-gray-200 rounded-full h-1.5 mt-3 overflow-hidden shadow-inner'>
-            <div className={`h-1.5 rounded-full transition-colors duration-1000 ${telemetry?.power_state === 'Charging' ? 'bg-orange-500' : telemetry?.power_state === 'Charged' ? 'bg-green-500' : (telemetry?.battery_v || 0) < 3.4 ? 'bg-red-500' : 'bg-yellow-400'}`} style={{ width: `${Math.max(0, Math.min(100, (((telemetry?.battery_v || 0) - 3.2) / 1.0) * 100))}%` }}></div>
+          <div className='w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-3 overflow-hidden shadow-inner'>
+            <div className={`h-1.5 rounded-full transition-colors duration-1000 ${telemetry?.power_state === 'Charging' ? 'bg-orange-500' : telemetry?.power_state === 'Charged' ? 'bg-green-500 dark:bg-green-600' : (telemetry?.battery_v || 0) < 3.4 ? 'bg-red-500' : 'bg-yellow-400'}`} style={{ width: `${Math.max(0, Math.min(100, (((telemetry?.battery_v || 0) - 3.2) / 1.0) * 100))}%` }}></div>
           </div>
         </div>
 
@@ -449,13 +449,13 @@ const Dashboard = () => {
             <p className='text-secondary text-sm font-semibold'>Estado ML</p>
             <span className='text-xs font-mono text-text-secondary'>Inferencia</span>
           </div>
-          <p className='text-sm font-bold text-blue-400 truncate mt-1'>
+          <p className='text-sm font-bold text-blue-400 dark:text-blue-300 truncate mt-1'>
             {telemetry?.ml_inference_us ? (telemetry.ml_inference_us / 1000).toFixed(1) : '--'} ms
           </p>
-          <div className='border-t border-gray-700 mt-3 pt-3 grid grid-cols-1 gap-2 text-xs font-mono text-gray-400'>
+          <div className='border-t border-border-color mt-3 pt-3 grid grid-cols-1 gap-2 text-xs font-mono text-muted'>
             <div>
               <p>Heap Free / Max:</p>
-              <p className='text-blue-400 font-bold text-sm'>
+              <p className='text-blue-400 dark:text-blue-300 font-bold text-sm'>
                 {((telemetry?.heap_free || 0) / 1024).toFixed(0)} / {((telemetry?.heap_max_block || 0) / 1024).toFixed(0)} KB
               </p>
             </div>

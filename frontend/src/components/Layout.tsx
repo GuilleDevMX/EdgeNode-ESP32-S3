@@ -126,7 +126,7 @@ const Layout = ({ children, activeMenu, setActiveMenu }: LayoutProps) => {
 
           <div className='flex items-center gap-4 shrink-0'>
             {/* Theme Toggle Button */}
-            <button onClick={toggleTheme} className='hidden sm:flex items-center justify-center p-2 rounded-full hover:bg-app text-text-secondary transition-colors' title={`Cambiar a modo ${theme === 'light' ? 'oscuro' : 'claro'}`}>
+            <button onClick={toggleTheme} className='flex items-center justify-center p-2 rounded-full hover:bg-app text-text-secondary transition-colors' title={`Cambiar a modo ${theme === 'light' ? 'oscuro' : 'claro'}`}>
               {theme === 'light' ? (
                 <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z'></path></svg>
               ) : (
@@ -136,7 +136,7 @@ const Layout = ({ children, activeMenu, setActiveMenu }: LayoutProps) => {
 
             {/* Estado de conexión WebSocket */}
             <div className='hidden lg:flex items-center gap-2 px-3 py-1.5 bg-app rounded-lg border border-border-color shadow-inner text-xs font-mono' title={wsStatusStr}>
-              <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+              <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-500 dark:bg-green-600 animate-pulse' : 'bg-red-500'}`}></span>
               <span className='text-text-secondary truncate max-w-[150px]'>{wsStatusStr}</span>
             </div>
 
@@ -149,7 +149,7 @@ const Layout = ({ children, activeMenu, setActiveMenu }: LayoutProps) => {
               </span>
             </div>
 
-            <div className='px-2 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs md:text-sm font-mono rounded border border-blue-500/20 shadow-inner shrink-0'>
+            <div className='px-2 py-1 bg-blue-500/10 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs md:text-sm font-mono rounded border border-blue-500/20 shadow-inner shrink-0'>
               {role?.toUpperCase() || 'GUEST'}
             </div>
 

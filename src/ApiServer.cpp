@@ -915,7 +915,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(data["alert_temp"].is<bool>()) prefs.putBool("a_temp", data["alert_temp"].as<bool>());
         if(data["alert_hum"].is<bool>()) prefs.putBool("a_hum", data["alert_hum"].as<bool>());
         if(data["alert_sec"].is<bool>()) prefs.putBool("a_sec", data["alert_sec"].as<bool>());
-        if(data["pass"].is<String>()) { String p = data["pass"].as<String>(); if(p != "" && p != "********") prefs.putString("pass", p); }
+        if(data["pass"].is<String>()) { String p = data["pass"].as<String>(); if(p != "" && p != "********") saveEncryptedCredential(prefs, "pass", p); }
         prefs.end(); 
         ESP_LOGI(TAG, "SYS - Configuración SMTP actualizada.");
         auto r = request->beginResponse(200, "application/json", "{\"status\":\"success\"}"); addSecurityHeaders(r); request->send(r);
@@ -938,7 +938,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isAuthorized(request, "admin")) return;
         String json = "{\"enabled\":" + String(prefs.getBool("wa_en", false) ? "true" : "false") + 
                       ",\"phone\":\"" + prefs.getString("wa_phone", "") + "\"" +
-                      ",\"api_key\":\"" + prefs.getString("wa_api", "") + "\"}";
+                      ",\"api_key\":\"" + loadEncryptedCredential(prefs, "wa_api", "") + "\"}";
         auto r = request->beginResponse(200, "application/json", json); addSecurityHeaders(r); request->send(r);
     });
 
@@ -947,7 +947,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         JsonObject data = json.as<JsonObject>();
         prefs.putBool("wa_en", data["enabled"] | false);
         prefs.putString("wa_phone", data["phone"] | "");
-        prefs.putString("wa_api", data["api_key"] | "");
+        saveEncryptedCredential(prefs, "wa_api", data["api_key"].as<String>());
         writeAuditLog("WARN", currentSessionRole, "Configuración de WhatsApp alterada");
         // Registrar la creación en la auditoría
         String logMsg = "Actualización de configuración de WhatsApp. Habilitado: " + String(data["enabled"] | false ? "Sí" : "No") + "; Teléfono: " + (data["phone"].is<String>() ? data["phone"].as<String>() : "N/A");
@@ -962,7 +962,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isAuthorized(request, "admin")) return;
         String json = "{\"enabled\":" + String(prefs.getBool("cloud_en", false) ? "true" : "false") + 
                       ",\"url\":\"" + prefs.getString("cloud_url", "") + "\"" +
-                      ",\"token\":\"" + prefs.getString("cloud_auth", "") + "\"}";
+                      ",\"token\":\"" + loadEncryptedCredential(prefs, "cloud_auth", "") + "\"}";
         auto r = request->beginResponse(200, "application/json", json); addSecurityHeaders(r); request->send(r);
     });
 
@@ -971,7 +971,7 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         JsonObject data = json.as<JsonObject>();
         prefs.putBool("cloud_en", data["enabled"] | false);
         prefs.putString("cloud_url", data["url"] | "");
-        prefs.putString("cloud_auth", data["token"] | "");
+        saveEncryptedCredential(prefs, "cloud_auth", data["token"].as<String>());
         writeAuditLog("WARN", currentSessionRole, "Destino Cloud Webhook modificado");
         // Registrar la creación en la auditoría
         String logMsg = "Actualización de configuración de Cloud Webhook. Habilitado: " + String(data["enabled"] | false ? "Sí" : "No") + "; URL: " + (data["url"].is<String>() ? data["url"].as<String>() : "N/A");
@@ -1162,6 +1162,10 @@ void ApiServer::broadcastTelemetry(const String& jsonOutput) {
     if(WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED && ws.count() > 0) {
         ws.textAll(jsonOutput);
     }
+}
+
+uint32_t ApiServer::getClientCount() {
+    return ws.count();
 }
 
 ApiServer ApiSrv;

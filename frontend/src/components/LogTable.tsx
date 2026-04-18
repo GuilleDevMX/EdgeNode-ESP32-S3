@@ -9,10 +9,10 @@ interface LogEntry {
 const LogTable = ({ logs }: { logs: LogEntry[] }) => {
   const getSeverityStyle = (severity: string) => {
     switch (severity.toUpperCase()) {
-      case 'CRIT': return 'text-red-500 font-bold';
+      case 'CRIT': return 'text-red-500 dark:text-red-400 font-bold';
       case 'WARN': return 'text-yellow-500';
-      case 'INFO': return 'text-blue-400';
-      default: return 'text-gray-400';
+      case 'INFO': return 'text-blue-400 dark:text-blue-300';
+      default: return 'text-muted';
     }
   };
 
@@ -34,7 +34,7 @@ const LogTable = ({ logs }: { logs: LogEntry[] }) => {
               <td className={`px-6 py-4 whitespace-nowrap ${getSeverityStyle(log.severity)}`}>
                 {log.severity}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-blue-300">{log.user}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-blue-300 dark:text-blue-200">{log.user}</td>
               <td className="px-6 py-4 text-secondary italic">{log.action}</td>
             </tr>
           ))}

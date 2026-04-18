@@ -56,10 +56,10 @@ const SmtpSettings = () => {
                 Motor de Alertas y Notificaciones (SMTP)
               </h3>
               <span
-                className={`border text-xs px-3 py-1 rounded-full font-semibold flex items-center gap-1 ${smtpConfig.enabled ? "bg-green-50 text-green-700 border-green-200" : "bg-gray-50 text-text-secondary border-gray-200"}`}
+                className={`border text-xs px-3 py-1 rounded-full font-semibold flex items-center gap-1 ${smtpConfig.enabled ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800" : "bg-gray-50 dark:bg-gray-800/50 text-text-secondary border-gray-200 dark:border-gray-700"}`}
               >
                 <div
-                  className={`w-2 h-2 rounded-full ${smtpConfig.enabled ? "bg-green-500" : "bg-gray-400"}`}
+                  className={`w-2 h-2 rounded-full ${smtpConfig.enabled ? "bg-green-500 dark:bg-green-600" : "bg-gray-400 dark:bg-gray-500"}`}
                 ></div>
                 {smtpConfig.enabled ? "Servicio Activo" : "Servicio Apagado"}
               </span>
@@ -71,7 +71,7 @@ const SmtpSettings = () => {
                 <div className="flex items-center justify-between mb-4 border-b border-border-color pb-2">
                   <div className="flex items-center gap-2">
                     <svg
-                      className="w-5 h-5 text-purple-600"
+                      className="w-5 h-5 text-purple-600 dark:text-purple-400"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -99,7 +99,7 @@ const SmtpSettings = () => {
                       }
                       className="checkbox-field"
                     />
-                    <span className="text-sm font-bold text-gray-700">
+                    <span className="text-sm font-bold text-text-secondary">
                       Habilitar Alertas Correo
                     </span>
                   </label>
@@ -208,7 +208,7 @@ const SmtpSettings = () => {
                   <div className="bg-app p-4 rounded border border-border-color flex flex-col justify-between">
                     <div>
                       <div className="flex justify-between items-center mb-2">
-                        <label className="text-sm font-bold text-orange-800">
+                        <label className="text-sm font-bold text-orange-800 dark:text-orange-300">
                           Temperatura (°C)
                         </label>
                         <input
@@ -220,12 +220,12 @@ const SmtpSettings = () => {
                               alert_temp: e.target.checked,
                             })
                           }
-                          className="w-4 h-4 text-orange-600"
+                          className="w-4 h-4 text-orange-600 dark:text-orange-400"
                         />
                       </div>
                       <div className="flex gap-2">
                         <div className="w-1/2">
-                          <p className="text-[10px] text-orange-600 font-bold uppercase">
+                          <p className="text-[10px] text-orange-600 dark:text-orange-400 font-bold uppercase">
                             Máximo
                           </p>
                           <input
@@ -242,7 +242,7 @@ const SmtpSettings = () => {
                           />
                         </div>
                         <div className="w-1/2">
-                          <p className="text-[10px] text-orange-600 font-bold uppercase">
+                          <p className="text-[10px] text-orange-600 dark:text-orange-400 font-bold uppercase">
                             Mínimo
                           </p>
                           <input
@@ -266,7 +266,7 @@ const SmtpSettings = () => {
                     <div className="bg-app p-4 rounded border border-border-color flex flex-col justify-between">
                       <div>
                       <div className="flex justify-between items-center mb-2">
-                        <label className="text-sm font-bold text-blue-800">
+                        <label className="text-sm font-bold text-blue-800 dark:text-blue-300">
                           Humedad (%)
                         </label>
                         <input
@@ -278,12 +278,12 @@ const SmtpSettings = () => {
                               alert_hum: e.target.checked,
                             })
                           }
-                          className="w-4 h-4 text-blue-600"
+                          className="w-4 h-4 text-blue-600 dark:text-blue-400"
                         />
                       </div>
                       <div className="flex gap-2">
                         <div className="w-1/2">
-                          <p className="text-[10px] text-blue-600 font-bold uppercase">
+                          <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">
                             Alto (Corto)
                           </p>
                           <input
@@ -300,7 +300,7 @@ const SmtpSettings = () => {
                           />
                         </div>
                         <div className="w-1/2">
-                          <p className="text-[10px] text-blue-600 font-bold uppercase">
+                          <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">
                             Bajo (Estática)
                           </p>
                           <input
@@ -381,7 +381,7 @@ const SmtpSettings = () => {
                   type="button"
                   onClick={handleTestEmail}
                   disabled={!smtpConfig.enabled}
-                  className="px-4 py-2 border-2 border-purple-600 text-purple-600 rounded font-bold hover:bg-purple-50 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 border-2 border-purple-600 text-purple-600 dark:text-purple-400 rounded font-bold hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors disabled:opacity-50"
                 >
                   Enviar Correo de Prueba
                 </button>

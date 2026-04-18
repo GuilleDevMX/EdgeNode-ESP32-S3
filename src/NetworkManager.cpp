@@ -14,6 +14,7 @@
 #include <esp_log.h>
 #include <esp_check.h>
 #include "DisplayManager.h"
+#include "CryptoUtils.h"
 
 static const char *TAG = "EdgeSecOps";
 
@@ -227,11 +228,11 @@ esp_err_t NetworkManager::setupWebServerOOBE(AsyncWebServer* server) {
         prefs.begin("net", false);
         prefs.putString("ssid", ssid);
         prefs.putString("pass", pass);
-        if (data.containsKey("dhcp")) prefs.putBool("dhcp", data["dhcp"].as<bool>());
-        if (data.containsKey("ip")) prefs.putString("ip", data["ip"].as<String>());
-        if (data.containsKey("gateway")) prefs.putString("gw", data["gateway"].as<String>());
-        if (data.containsKey("subnet")) prefs.putString("sn", data["subnet"].as<String>());
-        if (data.containsKey("dns")) prefs.putString("dns", data["dns"].as<String>());
+        if (data["dhcp"].is<bool>()) prefs.putBool("dhcp", data["dhcp"].as<bool>());
+        if (data["ip"].is<String>()) prefs.putString("ip", data["ip"].as<String>());
+        if (data["gateway"].is<String>()) prefs.putString("gw", data["gateway"].as<String>());
+        if (data["subnet"].is<String>()) prefs.putString("sn", data["subnet"].as<String>());
+        if (data["dns"].is<String>()) prefs.putString("dns", data["dns"].as<String>());
         prefs.end();
 
         auto response = request->beginResponse(200, "application/json", "{\"message\":\"Configuración aplicada. Reiniciando nodo...\"}");
