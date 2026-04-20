@@ -69,5 +69,4 @@ jobs:
           Se ha verificado que el código compila exitosamente (`pio run`) con las nuevas versiones.
           Por favor, revisa los cambios en `platformio.ini` y en `.pio/libdeps/`.
         branch: "chore/update-pio-deps"
-        labels: "backend, dependencies"
         delete-branch: true
