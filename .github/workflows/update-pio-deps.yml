@@ -1,5 +1,8 @@
 name: Update PlatformIO Dependencies
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   schedule:
     - cron: '0 0 * * 1' # Ejecutar todos los lunes a medianoche
