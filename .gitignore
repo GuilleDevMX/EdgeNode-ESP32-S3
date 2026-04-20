@@ -24,6 +24,7 @@ frontend/yarn-error.log*
 data/www/*
 !data/www/.gitkeep
 temp/
+docs/
 
 # Hardware / Secrets
 include/secrets.h
