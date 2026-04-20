@@ -15,6 +15,7 @@ const SensorSettings = () => {
       { pin: 18, type: 22, t_off: -0.5 },
     ],
     adc_pin: 5,
+    adc_gnd_pin: -1,
     r1: 100000,
     r2: 100000,
     adc_offset: 0.0,
@@ -213,7 +214,7 @@ const SensorSettings = () => {
             </h4>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="label-field">
                 Pin ADC Batería
@@ -225,6 +226,22 @@ const SensorSettings = () => {
                   setSensorConfig({
                     ...sensorConfig,
                     adc_pin: parseInt(e.target.value),
+                  })
+                }
+                className="input-field font-mono"
+              />
+            </div>
+            <div>
+              <label className="label-field">
+                Pin GND Ahorro Energía
+              </label>
+              <input
+                type='number'
+                value={sensorConfig.adc_gnd_pin || -1}
+                onChange={(e) =>
+                  setSensorConfig({
+                    ...sensorConfig,
+                    adc_gnd_pin: parseInt(e.target.value),
                   })
                 }
                 className="input-field font-mono"
@@ -263,7 +280,7 @@ const SensorSettings = () => {
               />
             </div>
 
-            <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border-color mt-2">
+            <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border-color mt-2">
               <div>
                 <label className="label-field">
                   ADC Offset (V)
@@ -306,7 +323,7 @@ const SensorSettings = () => {
               </div>
             </div>
 
-            <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border-color mt-2">
+            <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border-color mt-2">
               <div>
                 <label className="label-field">
                   Sleep Mode (Optimización Batería)
