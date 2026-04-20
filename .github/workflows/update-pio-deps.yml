@@ -1,0 +1,70 @@
+name: Update PlatformIO Dependencies
+
+on:
+  schedule:
+    - cron: '0 0 * * 1' # Ejecutar todos los lunes a medianoche
+  workflow_dispatch: # Permite ejecutar el workflow manualmente
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-pio-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Cache pip
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Cache PlatformIO
+      uses: actions/cache@v4
+      with:
+        path: ~/.platformio
+        key: ${{ runner.os }}-pio
+        
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade platformio
+
+    - name: Update PlatformIO Packages & Libraries
+      run: |
+        pio pkg update -e esp32s3
+        
+    - name: Verify Build with New Dependencies
+      run: pio run -e esp32s3
+
+    - name: Check for Changes
+      id: git-check
+      run: |
+        git diff --exit-code platformio.ini || echo "changed=true" >> $GITHUB_OUTPUT
+
+    - name: Create Pull Request
+      if: steps.git-check.outputs.changed == 'true'
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "chore: update PlatformIO dependencies"
+        title: "⬆️ Update PlatformIO (Backend) Dependencies"
+        body: |
+          Este Pull Request automatizado actualiza las librerías del backend de C++ gestionadas por PlatformIO.
+          
+          Se ha verificado que el código compila exitosamente (`pio run`) con las nuevas versiones.
+          Por favor, revisa los cambios en `platformio.ini` y en `.pio/libdeps/`.
+        branch: "chore/update-pio-deps"
+        labels: "backend, dependencies"
+        delete-branch: true
