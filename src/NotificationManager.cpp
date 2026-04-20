@@ -3,6 +3,7 @@
 #include "SecurityManager.h"
 #include <esp_log.h>
 #include <esp_wifi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <UrlEncode.h>
 #include <Preferences.h>
@@ -121,23 +122,42 @@ void NotificationManager::syncDataToCloud(String jsonPayload) {
     bool cloud_en = p.getBool("cloud_en", false);
     String url = p.getString("cloud_url", "");
     String token = ::loadEncryptedCredential(p, "cloud_auth", "");
+    String clientCert = ::loadEncryptedCredential(p, "mtls_cert", "");
+    String clientKey = ::loadEncryptedCredential(p, "mtls_key", "");
+    String caCert = ::loadEncryptedCredential(p, "mtls_ca", "");
     p.end();
 
     if (!cloud_en || url == "") return;
 
-    HTTPClient http;
-    http.begin(url); 
-    http.addHeader("Content-Type", "application/json");
-    if (token != "") http.addHeader("Authorization", "Bearer " + token);
+    WiFiClientSecure *client = new WiFiClientSecure;
+    if (client) {
+        if (clientCert != "" && clientKey != "") {
+            client->setCertificate(clientCert.c_str());
+            client->setPrivateKey(clientKey.c_str());
+            if (caCert != "") {
+                client->setCACert(caCert.c_str());
+            } else {
+                client->setInsecure();
+            }
+        } else {
+            client->setInsecure();
+        }
 
-    int httpResponseCode = http.POST(jsonPayload);
-    
-    if (httpResponseCode >= 200 && httpResponseCode < 300) {
-        ESP_LOGD(TAG, "Sincronización Cloud exitosa.");
-    } else {
-        ESP_LOGW(TAG, "Fallo en sincronización Cloud: %d", httpResponseCode);
+        HTTPClient http;
+        http.begin(*client, url); 
+        http.addHeader("Content-Type", "application/json");
+        if (token != "") http.addHeader("Authorization", "Bearer " + token);
+
+        int httpResponseCode = http.POST(jsonPayload);
+        
+        if (httpResponseCode >= 200 && httpResponseCode < 300) {
+            ESP_LOGD(TAG, "Sincronización Cloud exitosa.");
+        } else {
+            ESP_LOGW(TAG, "Fallo en sincronización Cloud: %d", httpResponseCode);
+        }
+        http.end();
+        delete client;
     }
-    http.end();
 }
 
 // =========================================================================

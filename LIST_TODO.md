@@ -50,3 +50,9 @@ Este documento detalla las APIs nativas de ESP-IDF que se implementarán progres
     - [x] **Zoom Interactivo:** Incorporar funcionalidad de zoom y barrido (*pan*) a las gráficas del Dashboard (vivo e histórico) para análisis minucioso de la telemetría.
   - [x] **Settings:** Rediseñar `SensorSettings.tsx` utilizando un acordeón o lista detallada para ajustar pines y compensaciones (*offsets*) para los 5 sensores de forma independiente.
   - [x] **Notificaciones & Lógica:** Modificar `NotificationManager` para indicar **cuál** de los 5 sensores superó el umbral.
+
+## 📚 Fase 7: Documentación y CI/CD
+- [x] **Documentación para GitHub (READMEs):** Crear/Actualizar los archivos README.md detallados tanto para el Frontend (React) como para el Backend (C++ ESP-IDF), explicando la arquitectura, configuración, instalación y uso.
+- [x] **Documentación Automatizada (Doxygen):** Configurar y generar documentación técnica del código fuente en C++ utilizando Doxygen para mantener un estándar profesional.
+- [x] **Continuous Integration (CI):** Implementar GitHub Actions para compilar automáticamente el código (tanto Node.js/Vite para el frontend como PlatformIO para el backend) en cada Pull Request o Push, asegurando que no se rompa el build.
+- [x] **Continuous Deployment (CD):** Configurar GitHub Actions para generar los binarios de release (firmware.bin, littlefs.bin, y assets del frontend) y publicarlos automáticamente en los Releases de GitHub al crear un nuevo Tag.
