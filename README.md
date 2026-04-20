@@ -37,8 +37,9 @@ El proyecto está dividido en dos componentes principales:
 ```text
 ├── src/                # Código fuente principal del Backend C++ (PlatformIO)
 ├── include/            # Cabeceras (.h) del Backend
-├── data/               # Sistema de Archivos LittleFS (Binarios del frontend pre-compilados)
+├── data/               # Sistema de Archivos LittleFS (Binarios del frontend pre-compilados y modelo TFLite)
 ├── frontend/           # Proyecto completo de React / Vite (Código fuente del Dashboard)
+├── ml/                 # Scripts en Python para entrenamiento del modelo de IA (TinyML)
 ├── platformio.ini      # Configuración de compilación para el ESP32-S3
 └── LIST_TODO.md        # Roadmap y seguimiento del proyecto
 ```
@@ -64,6 +65,14 @@ El firmware C++ requiere que los archivos HTML/JS/CSS del panel de control exist
 2. Ejecuta la tarea `Upload Filesystem Image` (`pio run -t uploadfs`).
 
 > **Nota para Desarrolladores Front-end:** Si deseas hacer cambios en el diseño web, consulta el archivo `frontend/README.md` para ver las instrucciones de desarrollo con React.
+
+### 3. Entrenar el Modelo de Inteligencia Artificial (Opcional)
+El proyecto incluye un modelo de TinyML (Autoencoder) pre-entrenado. Si deseas re-entrenarlo o ajustar los umbrales ambientales:
+1. Asegúrate de tener Python 3.9+ instalado.
+2. Navega al directorio de Machine Learning: `cd ml/`
+3. Instala las dependencias: `pip install -r requirements.txt`
+4. Ejecuta el script de entrenamiento: `python train_anomaly_net.py`
+5. El nuevo modelo se guardará automáticamente en `data/www/anomaly_net.tflite`. Deberás repetir el paso 2 (Subir a LittleFS) para que el ESP32 lo comience a utilizar.
 
 ---
 
