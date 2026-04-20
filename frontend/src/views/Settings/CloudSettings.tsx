@@ -9,6 +9,9 @@ const CloudSettings = () => {
     enabled: false,
     url: '',
     token: '',
+    mtls_cert: '',
+    mtls_key: '',
+    mtls_ca: '',
   });
 
   useEffect(() => {
@@ -139,6 +142,73 @@ const CloudSettings = () => {
                   Authorization: Bearer &lt;token&gt;
                 </code>
               </p>
+            </div>
+          </div>
+        </section>
+
+        {/* SECCIÓN mTLS */}
+        <section className="card p-6" style={{
+              opacity: cloudConfig.enabled ? 1 : 0.5,
+              pointerEvents: cloudConfig.enabled ? 'auto' : 'none',
+            }}>
+          <div className="flex items-center gap-2 mb-4 border-b border-border-color pb-2">
+            <svg
+              className="w-5 h-5 text-indigo-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+              />
+            </svg>
+            <h4 className="text-lg font-bold text-text-primary">
+              Seguridad mTLS (Mutual TLS) - Opcional
+            </h4>
+          </div>
+          <p className="text-xs text-text-secondary mb-4">
+            Proporciona certificados X.509 (.pem) para autenticación de dispositivo a nivel industrial. Si dejas esto vacío, se usarán conexiones estándar (Insecure/Trust-All).
+          </p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="label-field">Certificado de Cliente (Client Certificate)</label>
+              <textarea
+                placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
+                value={cloudConfig.mtls_cert || ''}
+                onChange={(e) =>
+                  setCloudConfig({ ...cloudConfig, mtls_cert: e.target.value })
+                }
+                className="input-field font-mono text-[10px] h-32 whitespace-pre"
+              ></textarea>
+            </div>
+            
+            <div>
+              <label className="label-field">Llave Privada (Private Key)</label>
+              <textarea
+                placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+                value={cloudConfig.mtls_key || ''}
+                onChange={(e) =>
+                  setCloudConfig({ ...cloudConfig, mtls_key: e.target.value })
+                }
+                className="input-field font-mono text-[10px] h-32 whitespace-pre"
+              ></textarea>
+              <p className="text-[10px] text-red-500 font-bold mt-1">Esta llave se guardará de forma encriptada en el dispositivo mediante AES-GCM.</p>
+            </div>
+
+            <div>
+              <label className="label-field">Certificado de Autoridad (CA Root) - Opcional</label>
+              <textarea
+                placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
+                value={cloudConfig.mtls_ca || ''}
+                onChange={(e) =>
+                  setCloudConfig({ ...cloudConfig, mtls_ca: e.target.value })
+                }
+                className="input-field font-mono text-[10px] h-24 whitespace-pre"
+              ></textarea>
             </div>
           </div>
         </section>

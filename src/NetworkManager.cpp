@@ -149,8 +149,13 @@ bool NetworkManager::connectToOperationalWiFi() {
             ESP_LOGE(TAG, "SYS - TIMEOUT NTP: No se pudo obtener la hora.");
         }
 
-        if (MDNS.begin("edgenode")) {
-            ESP_LOGI(TAG, "NET - mDNS Responder activo. Accesible en: http://edgenode.local");
+        nvs.begin("wifi", true);
+        String mdns_name = nvs.getString("mdns", "edgenode");
+        nvs.end();
+
+        if (MDNS.begin(mdns_name.c_str())) {
+            MDNS.addService("http", "tcp", 80);
+            ESP_LOGI(TAG, "NET - mDNS Responder activo. Accesible en: http://%s.local", mdns_name.c_str());
         }
         
         return true;

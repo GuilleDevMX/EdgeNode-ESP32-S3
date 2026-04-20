@@ -960,9 +960,14 @@ esp_err_t ApiServer::begin(bool oobeMode) {
     // --- ENDPOINT: CLOUD WEBHOOK CONFIG ---
     server.on("/api/config/cloud", HTTP_GET, [](AsyncWebServerRequest *request) {
         if(!isAuthorized(request, "admin")) return;
-        String json = "{\"enabled\":" + String(prefs.getBool("cloud_en", false) ? "true" : "false") + 
-                      ",\"url\":\"" + prefs.getString("cloud_url", "") + "\"" +
-                      ",\"token\":\"" + loadEncryptedCredential(prefs, "cloud_auth", "") + "\"}";
+        JsonDocument doc;
+        doc["enabled"] = prefs.getBool("cloud_en", false);
+        doc["url"] = prefs.getString("cloud_url", "");
+        doc["token"] = loadEncryptedCredential(prefs, "cloud_auth", "");
+        doc["mtls_cert"] = loadEncryptedCredential(prefs, "mtls_cert", "");
+        doc["mtls_key"] = loadEncryptedCredential(prefs, "mtls_key", "");
+        doc["mtls_ca"] = loadEncryptedCredential(prefs, "mtls_ca", "");
+        String json; serializeJson(doc, json);
         auto r = request->beginResponse(200, "application/json", json); addSecurityHeaders(r); request->send(r);
     });
 
@@ -971,7 +976,10 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         JsonObject data = json.as<JsonObject>();
         prefs.putBool("cloud_en", data["enabled"] | false);
         prefs.putString("cloud_url", data["url"] | "");
-        saveEncryptedCredential(prefs, "cloud_auth", data["token"].as<String>());
+        if (data.containsKey("token")) saveEncryptedCredential(prefs, "cloud_auth", data["token"].as<String>());
+        if (data.containsKey("mtls_cert")) saveEncryptedCredential(prefs, "mtls_cert", data["mtls_cert"].as<String>());
+        if (data.containsKey("mtls_key")) saveEncryptedCredential(prefs, "mtls_key", data["mtls_key"].as<String>());
+        if (data.containsKey("mtls_ca")) saveEncryptedCredential(prefs, "mtls_ca", data["mtls_ca"].as<String>());
         writeAuditLog("WARN", currentSessionRole, "Destino Cloud Webhook modificado");
         // Registrar la creación en la auditoría
         String logMsg = "Actualización de configuración de Cloud Webhook. Habilitado: " + String(data["enabled"] | false ? "Sí" : "No") + "; URL: " + (data["url"].is<String>() ? data["url"].as<String>() : "N/A");
