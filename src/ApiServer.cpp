@@ -465,11 +465,12 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
         if(!isAuthorized(request, "admin")) { auto r = request->beginResponse(401); addSecurityHeaders(r); request->send(r); return; }
         JsonDocument doc; JsonArray usersArray = doc.to<JsonArray>();
-        JsonObject rootObj = usersArray.add<JsonObject>();
-        rootObj["id"] = "root"; rootObj["username"] = "admin";
-        rootObj["role"] = "admin"; rootObj["last_login"] = "Protegido";
-
         prefs.begin("users", true);
+        String rootUser = prefs.getString("root_name", "admin");
+
+        JsonObject rootObj = usersArray.add<JsonObject>();
+        rootObj["id"] = "root"; rootObj["username"] = rootUser;
+        rootObj["role"] = "admin"; rootObj["last_login"] = "Protegido";
         for(int i=0; i<5; i++) {
             String uName = prefs.getString(("u_name_" + String(i)).c_str(), "");
             if(uName != "") {
@@ -775,8 +776,12 @@ esp_err_t ApiServer::begin(bool oobeMode) {
         JsonObject data = json.as<JsonObject>();
         String password = data["password"] | "";
 
+        prefs.begin("users", true);
+        String rootUser = prefs.getString("root_name", "admin");
+        prefs.end();
+
         // Verificamos explícitamente que la contraseña introducida sea la del Root/Admin
-        if (!SecMgr.authenticateUser("admin", password)) {
+        if (!SecMgr.authenticateUser(rootUser, password)) {
             // Dormimos 2 segundos para mitigar ataques de fuerza bruta
             vTaskDelay(pdMS_TO_TICKS(2000));
             auto r = request->beginResponse(403, "application/json", "{\"error\":\"Contraseña de administrador incorrecta.\"}");

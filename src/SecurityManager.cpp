@@ -204,13 +204,13 @@ bool SecurityManagerClass::authenticateUser(const String& username, const String
     // Obtener salt para el usuario (root o regular)
     String salt = "";
     const char* namespaceName = "users";
-    String saltKey = (username == "admin") ? "root_salt" : "u_salt_0";  // Simplificado
     
     if (xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         Preferences prefs;
         if (prefs.begin(namespaceName, true)) {
+            String rootUser = prefs.getString("root_name", "admin");
             // Intentar obtener salt específico del usuario
-            if (username == "admin") {
+            if (username == rootUser) {
                 salt = prefs.getString("root_salt", "");
             } else {
                 // Buscar salt en slots de usuarios regulares
@@ -247,8 +247,8 @@ bool SecurityManagerClass::authenticateUser(const String& username, const String
                 authenticated = true;
             }
             
-            // 2. Verificar usuarios regulares (si no es admin)
-            if (!authenticated && username != "admin") {
+            // 2. Verificar usuarios regulares (si no es root)
+            if (!authenticated && username != rootUser) {
                 for(int i = 0; i < 5; i++) {
                     String uName = prefs.getString(("u_name_" + String(i)).c_str(), "");
                     String uHash = prefs.getString(("u_hash_" + String(i)).c_str(), "");
@@ -283,7 +283,8 @@ String SecurityManagerClass::getUserRole(const String& username) {
         Preferences prefs;
         if (prefs.begin("users", true)) {
             // Verificar si es admin root
-            if (username == "admin" && prefs.getString("root_name", "") == username) {
+            String rootUser = prefs.getString("root_name", "admin");
+            if (username == rootUser) {
                 role = prefs.getString("root_role", "admin");
             } else {
                 // Buscar en slots de usuarios regulares
