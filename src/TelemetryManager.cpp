@@ -448,7 +448,7 @@ void TelemetryManager::sensorTask(void *parameter) {
                                "<b>Nivel de Anomalía (MSE):</b> " + String(mse, 4) + "<br><br>"
                                "<i>Inspección física requerida inmediatamente.</i>";
                 NotifMgr.sendEmail("🤖 ALERTA PREDICTIVA: Anomalía", aiMsg);
-                lastAiAlertTime = crossed;
+                lastAiAlertTime = now;
             }
         }
 
