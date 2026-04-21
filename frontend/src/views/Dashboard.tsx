@@ -42,7 +42,7 @@ const DEFAULT_PREFS: ZonePref[] = [
 ];
 
 const Dashboard = () => {
-  const [timeWindow, setTimeWindow] = useState<number>(60);
+  const [dataWindow, setDataWindow] = useState<number>(60);
   const [zonePrefs, setZonePrefs] = useState<ZonePref[]>(() => {
     const saved = localStorage.getItem('dashboard_zone_prefs');
     return saved ? JSON.parse(saved) : DEFAULT_PREFS;
@@ -260,7 +260,7 @@ const Dashboard = () => {
     }
   }, [telemetry]);
 
-  const visibleData = chartData.slice(-timeWindow);
+  const visibleData = chartData.slice(-dataWindow);
   
   // Revisar si algún sensor supera los 35 grados
   const isTempCritical = telemetry?.sensors?.some((s: any) => s.t && s.t > 35.0) ?? false;
@@ -288,7 +288,7 @@ const Dashboard = () => {
       h_max: Math.max(...allHums).toFixed(1),
       h_min: Math.min(...allHums).toFixed(1),
     };
-  }, [chartData, timeWindow]);
+  }, [chartData, dataWindow]);
 
   if (!telemetry && status === 'connecting') {
     return (
@@ -341,11 +341,11 @@ const Dashboard = () => {
             Gráficos
           </button>
           <div className='flex items-center gap-2 text-sm font-semibold'>
-            <span className='text-secondary'>Ventana:</span>
-          <select value={timeWindow} onChange={(e) => setTimeWindow(Number(e.target.value))} className='input-field'>
-            <option value={60}>Últimos 5 Minutos</option>
-            <option value={180}>Últimos 15 Minutos</option>
-            <option value={360}>Últimos 30 Minutos</option>
+            <span className='text-secondary'>Muestras:</span>
+          <select value={dataWindow} onChange={(e) => setDataWindow(Number(e.target.value))} className='input-field'>
+            <option value={60}>Últimas 60 Muestras</option>
+            <option value={180}>Últimas 180 Muestras</option>
+            <option value={360}>Últimas 360 Muestras</option>
           </select>
         </div>
         </div>
