@@ -1,3 +1,9 @@
+/**
+ * @file main.cpp
+ * @brief Entry point and main control loop for the EdgeSecOps node.
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
 #include <Arduino.h>
 #include "ApiServer.h"
 #include <WiFi.h>
@@ -30,15 +36,24 @@
 // --- ETIQUETA GLOBAL PARA LOS LOGS ---
 #include <esp_ota_ops.h>
 
+/** @brief Global tag for ESP-IDF logging. */
 static const char *TAG = "EdgeSecOps";
 
 // --- PROTOTIPOS DE FUNCIONES ---
+/**
+ * @brief Initializes the secure random number generator using hardware entropy.
+ */
 void initSecureRNG();
 
 // --- INSTANCIACIÓN DE CLASES PRINCIPALES ---
+/** @brief Global preferences instance for NVS storage. */
 Preferences prefs;
+/** @brief Global LittleFS instance for log storage. */
 fs::LittleFSFS LogFS;
 
+/**
+ * @brief Initializes the secure random number generator using hardware entropy.
+ */
 void initSecureRNG() {
     uint32_t seed = esp_random() ^ (uint32_t)micros() ^ (uint32_t)(ESP.getEfuseMac() >> 32);
     seed ^= (uint32_t)(ESP.getEfuseMac() & 0xFFFFFFFF);
@@ -47,20 +62,32 @@ void initSecureRNG() {
 }
 
 // --- Control de Ciclo de Vida del Sistema ---
+/** @brief Flag indicating if a system reboot has been requested. */
 bool pendingReboot = false;
+/** @brief Timestamp of the reboot request. */
 unsigned long rebootRequestTime = 0;
+/** @brief Delay in milliseconds before rebooting after a request. */
 const unsigned long REBOOT_DELAY_MS = 3000;
 
 // --- VARIABLES COMPARTIDAS Y MUTEX (RTOS) ---
+/** @brief Mutex for protecting NVS access across RTOS tasks. */
 SemaphoreHandle_t nvsMutex = NULL;
+/** @brief Mutex for protecting session variables across RTOS tasks. */
 SemaphoreHandle_t sessionMutex;
 
 // --- VARIABLES DE SESIÓN (IAM) - PROTEGIDAS POR sessionMutex ---
+/** @brief Current active session token. */
 String currentSessionToken = ""; 
+/** @brief Role associated with the current session. */
 String currentSessionRole = ""; 
+/** @brief Epoch time when the current session expires. */
 time_t sessionExpirationEpoch = 0; 
 
 // --- INICIALIZACIÓN DEL SISTEMA CON MANEJO DE ERRORES (ESP-IDF) ---
+/**
+ * @brief Initializes core system components including NVS, LittleFS, AI, Mutexes, and Managers.
+ * @return ESP_OK on success, or an error code on failure.
+ */
 esp_err_t init_system() {
     // 1. NVS con recovery
     esp_err_t err = nvs_flash_init();
@@ -133,6 +160,9 @@ esp_err_t init_system() {
 }
 
 // --- CICLO PRINCIPAL ---
+/**
+ * @brief Arduino setup function. Initializes serial, RNG, and the system.
+ */
 void setup() {
     Serial.begin(115200);
     initSecureRNG();
@@ -147,6 +177,10 @@ void setup() {
         esp_restart();
     }
 }
+
+/**
+ * @brief Arduino main loop function. Handles network, power management, telemetry, and API server.
+ */
 void loop() {
     NetMgr.handleLoop();    
     static unsigned long lastTelemetry = 0;

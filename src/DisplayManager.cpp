@@ -1,3 +1,9 @@
+/**
+ * @file DisplayManager.cpp
+ * @brief Implementation of the Display Manager for OLED screen control.
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
 #include "DisplayManager.h"
 #include <Wire.h>
 #include "SSD1306Wire.h"
@@ -7,11 +13,25 @@
 #include "AiManager.h"
 #include <WiFi.h>
 
+/**
+ * @brief TAG used for ESP-IDF logging.
+ */
 static const char *TAG = "DisplayMgr";
 
+/**
+ * @brief Global OLED display object instance.
+ */
 SSD1306Wire display(0x3c, 8, 9);
+
+/**
+ * @brief Global instance of the DisplayManager.
+ */
 DisplayManager DisplayMgr;
 
+/**
+ * @brief Initializes the OLED display and starts the display task.
+ * @return ESP_OK on successful initialization.
+ */
 esp_err_t DisplayManager::begin() {
     Wire.begin(8, 9);
     display.init();
@@ -24,6 +44,10 @@ esp_err_t DisplayManager::begin() {
     return ESP_OK;
 }
 
+/**
+ * @brief Displays a QR code on the OLED screen.
+ * @param payload The string payload to encode in the QR code.
+ */
 void DisplayManager::showQR(const char* payload) {
     _isOobeMode = true;
     display.clear();
@@ -54,6 +78,9 @@ void DisplayManager::showQR(const char* payload) {
     display.display();
 }
 
+/**
+ * @brief Displays a textual message on the OLED screen.
+ */
 void DisplayManager::showMessage(const char* title, const char* message) {
     _isOobeMode = true;
     display.clear();
@@ -64,6 +91,9 @@ void DisplayManager::showMessage(const char* title, const char* message) {
     display.display();
 }
 
+/**
+ * @brief Updates the dashboard view with current telemetry metrics.
+ */
 void DisplayManager::updateDashboard(float temp, float hum, float bat, String powerState, String ip, float mse) {
     display.clear();
     
@@ -95,6 +125,9 @@ void DisplayManager::updateDashboard(float temp, float hum, float bat, String po
     display.display();
 }
 
+/**
+ * @brief FreeRTOS task that periodically updates the OLED dashboard.
+ */
 void DisplayManager::displayTask(void *parameter) {
     DisplayManager* mgr = (DisplayManager*)parameter;
     

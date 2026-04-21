@@ -21,9 +21,13 @@ El proyecto está dividido en dos componentes principales:
 - **Tokens de Sesión (Bearer JWT):** El acceso a la API RESTful y al WebSocket está protegido por tokens de sesión dinámicos y Role-Based Access Control (RBAC).
 
 ### 📡 Telemetría y Edge Computing
-- **Soporte Multi-Sensor (DHT22):** Lectura concurrente y *Thread-Safe* de hasta 5 zonas simultáneas (Temperatura y Humedad).
+- **Soporte Multi-Sensor (DHT22):** Lectura concurrente y *Thread-Safe* de hasta 5 zonas simultáneas (Temperatura y Humedad) con calibración y offsets independientes por zona.
 - **Lectura Precisa de Batería (ADC):** Utiliza la calibración por hardware nativa del ESP32 (eFuses) y sobremuestreo de ruido para medir el voltaje real de baterías de LiPo.
-- **TinyML (TensorFlow Lite):** Un modelo Autoencoder pre-entrenado que evalúa las 11 variables ambientales de entrada para detectar y predecir anomalías térmicas o fallos energéticos localmente, sin depender de la nube.
+- **TinyML (TensorFlow Lite):** Un modelo Autoencoder pre-entrenado que evalúa las 11 variables ambientales de entrada (5x Temperaturas, 5x Humedades y Voltaje de Batería) para detectar y predecir anomalías térmicas o fallos energéticos localmente, sin depender de la nube.
+
+### 🚀 Integración y Despliegue Continuo (CI/CD)
+- **GitHub Actions:** Compilación automatizada en cada Pull Request o Push tanto del firmware C++ (PlatformIO) como del Dashboard React (Node.js/Vite).
+- **Auto-Releases:** Generación y publicación automática de binarios de distribución (`firmware.bin` y `littlefs.bin`) en cada nuevo Release (Tag) del repositorio.
 
 ### 🌐 Conectividad
 - **Portal Cautivo (OOBE):** Modo Access Point automático si el dispositivo pierde la conexión o arranca por primera vez, permitiendo la configuración fácil desde el móvil.
@@ -35,12 +39,14 @@ El proyecto está dividido en dos componentes principales:
 ## 📦 Estructura del Repositorio
 
 ```text
+├── .github/workflows/  # Pipelines de CI/CD (Compilación y Releases Automáticos)
 ├── src/                # Código fuente principal del Backend C++ (PlatformIO)
 ├── include/            # Cabeceras (.h) del Backend
 ├── data/               # Sistema de Archivos LittleFS (Binarios del frontend pre-compilados y modelo TFLite)
 ├── frontend/           # Proyecto completo de React / Vite (Código fuente del Dashboard)
 ├── ml/                 # Scripts en Python para entrenamiento del modelo de IA (TinyML)
 ├── platformio.ini      # Configuración de compilación para el ESP32-S3
+├── custom_16MB.csv     # Esquema de partición de memoria Flash personalizado
 └── LIST_TODO.md        # Roadmap y seguimiento del proyecto
 ```
 
@@ -78,7 +84,7 @@ El proyecto incluye un modelo de TinyML (Autoencoder) pre-entrenado. Si deseas r
 
 ## 📝 Documentación Adicional
 *   [Guía de Desarrollo del Frontend React](frontend/README.md)
-*   **Documentación de Código (Doxygen):** Próximamente (Ver Fase 7 en `LIST_TODO.md`).
+*   **Documentación de Código (Doxygen):** El código base C++ (ESP-IDF/PlatformIO) se encuentra completamente documentado. La documentación en formato HTML se genera en la carpeta `docs/` (Abre `docs/html/index.html` en tu navegador).
 
 ---
 

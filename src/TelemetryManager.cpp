@@ -1,3 +1,9 @@
+/**
+ * @file TelemetryManager.cpp
+ * @brief Implementation file for TelemetryManager handling sensors, battery, and AI triggering.
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
 #include "TelemetryManager.h"
 #include <WiFi.h>
 #include <LittleFS.h>
@@ -11,14 +17,21 @@
 #include <esp_adc_cal.h>
 #include <esp_task_wdt.h>
 
+/** @brief TAG for ESP-IDF logging. */
 static const char *TAG = "TelemetryMgr";
 
 // --- DEFINICIÓN DE PINES ---
+/** @brief GPIO pin for reading battery charging state. */
 const int PIN_CARGANDO = 13;
+/** @brief GPIO pin for reading battery full state. */
 const int PIN_LLENO = 14;
 
+/** @brief Global singleton instance of TelemetryManager. */
 TelemetryManager TelemetryMgr;
 
+/**
+ * @brief Constructor for TelemetryManager. Initializes arrays to NAN.
+ */
 TelemetryManager::TelemetryManager() {
     for (int i = 0; i < 5; i++) {
         currentTemp[i] = NAN;
@@ -29,6 +42,10 @@ TelemetryManager::TelemetryManager() {
     sensorMutex = NULL;
 }
 
+/**
+ * @brief Initializes the telemetry system, setting up pins, mutexes, and tasks.
+ * @return ESP_OK on success, or an error code.
+ */
 esp_err_t TelemetryManager::begin() {
     pinMode(PIN_CARGANDO, INPUT_PULLUP);
     pinMode(PIN_LLENO, INPUT_PULLUP);
@@ -42,6 +59,9 @@ esp_err_t TelemetryManager::begin() {
     return ESP_OK;
 }
 
+/**
+ * @brief Gets the last temperature reading for a specific sensor.
+ */
 float TelemetryManager::getTemperature(int index) {
     if (index < 0 || index >= 5) return NAN;
     float val = NAN;
@@ -52,6 +72,9 @@ float TelemetryManager::getTemperature(int index) {
     return val;
 }
 
+/**
+ * @brief Gets the last humidity reading for a specific sensor.
+ */
 float TelemetryManager::getHumidity(int index) {
     if (index < 0 || index >= 5) return NAN;
     float val = NAN;
@@ -62,6 +85,10 @@ float TelemetryManager::getHumidity(int index) {
     return val;
 }
 
+/**
+ * @brief Gets the average temperature across all valid sensors.
+ * @return Average temperature in Celsius, or NAN if none valid.
+ */
 float TelemetryManager::getAverageTemperature() {
     float sum = 0;
     int count = 0;
@@ -77,6 +104,10 @@ float TelemetryManager::getAverageTemperature() {
     return count > 0 ? (sum / count) : NAN;
 }
 
+/**
+ * @brief Gets the average humidity across all valid sensors.
+ * @return Average humidity percentage, or NAN if none valid.
+ */
 float TelemetryManager::getAverageHumidity() {
     float sum = 0;
     int count = 0;
@@ -92,6 +123,10 @@ float TelemetryManager::getAverageHumidity() {
     return count > 0 ? (sum / count) : NAN;
 }
 
+/**
+ * @brief Gets the current battery voltage.
+ * @return Battery voltage in Volts.
+ */
 float TelemetryManager::getBatteryVoltage() {
     float val = 0.0;
     if (xSemaphoreTake(sensorMutex, portMAX_DELAY) == pdTRUE) {
@@ -101,6 +136,10 @@ float TelemetryManager::getBatteryVoltage() {
     return val;
 }
 
+/**
+ * @brief Gets the current power state string.
+ * @return Power state (e.g., "Charging", "Discharging", "Charged").
+ */
 String TelemetryManager::getPowerState() {
     String val = "Discharging";
     if (xSemaphoreTake(sensorMutex, portMAX_DELAY) == pdTRUE) {
@@ -110,12 +149,18 @@ String TelemetryManager::getPowerState() {
     return val;
 }
 
+/**
+ * @brief Calculates the battery percentage from voltage.
+ */
 int TelemetryManager::getBatteryPercentage(float voltage) {
     if (voltage >= 4.2) return 100;
     if (voltage <= 3.2) return 0;
     return (int)(((voltage - 3.2) / (4.2 - 3.2)) * 100.0);
 }
 
+/**
+ * @brief Cleans up old telemetry CSV datasets from LittleFS based on retention policy.
+ */
 void TelemetryManager::cleanupOldDatasets() {
     Preferences prefs;
     prefs.begin("data", true);
@@ -153,6 +198,9 @@ void TelemetryManager::cleanupOldDatasets() {
     }
 }
 
+/**
+ * @brief FreeRTOS task for logging telemetry data to CSV on LittleFS.
+ */
 void TelemetryManager::dataLoggerTask(void *parameter) {
     TelemetryManager* mgr = (TelemetryManager*)parameter;
     
@@ -230,6 +278,9 @@ void TelemetryManager::dataLoggerTask(void *parameter) {
     }
 }
 
+/**
+ * @brief FreeRTOS task for reading sensors, calculating battery voltage, and detecting anomalies.
+ */
 void TelemetryManager::sensorTask(void *parameter) {
     TelemetryManager* mgr = (TelemetryManager*)parameter;
     Preferences prefs;
@@ -397,7 +448,7 @@ void TelemetryManager::sensorTask(void *parameter) {
                                "<b>Nivel de Anomalía (MSE):</b> " + String(mse, 4) + "<br><br>"
                                "<i>Inspección física requerida inmediatamente.</i>";
                 NotifMgr.sendEmail("🤖 ALERTA PREDICTIVA: Anomalía", aiMsg);
-                lastAiAlertTime = now;
+                lastAiAlertTime = crossed;
             }
         }
 

@@ -1,3 +1,9 @@
+/**
+ * @file AiManager.cpp
+ * @brief Implementation of the AI Manager for TinyML anomaly detection.
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
 #include "AiManager.h"
 #include <LittleFS.h>
 #include <esp_log.h>
@@ -7,27 +13,51 @@
 #include "tensorflow/lite/schema/schema_generated.h"
 #include <esp_check.h>
 
+/**
+ * @brief TAG used for ESP-IDF logging.
+ */
 static const char *TAG = "AiManager";
 
+/** @brief Minimum normalization value for temperature. */
 const float norm_t_min = 10.0;
+/** @brief Maximum normalization value for temperature. */
 const float norm_t_max = 40.0;
+/** @brief Minimum normalization value for humidity. */
 const float norm_h_min = 20.0;
+/** @brief Maximum normalization value for humidity. */
 const float norm_h_max = 80.0;
+/** @brief Minimum normalization value for battery voltage. */
 const float norm_b_min = 3.0;
+/** @brief Maximum normalization value for battery voltage. */
 const float norm_b_max = 4.2;
+/** @brief Threshold for anomaly detection based on MSE. */
 const float anomaly_threshold = 0.015;
 
+/** @brief Pointer to the loaded TensorFlow Lite model. */
 const tflite::Model* ml_model = nullptr;
+/** @brief Pointer to the TensorFlow Lite Micro interpreter. */
 tflite::MicroInterpreter* ml_interpreter = nullptr;
+/** @brief Pointer to the model's input tensor. */
 TfLiteTensor* ml_input = nullptr;
+/** @brief Pointer to the model's output tensor. */
 TfLiteTensor* ml_output = nullptr;
 
+/** @brief Size of the tensor arena in bytes. */
 constexpr int kTensorArenaSize = 8 * 1024;
+/** @brief Memory buffer for the tensor arena. */
 uint8_t tensor_arena[kTensorArenaSize];
+/** @brief Dynamically allocated buffer for holding the model data. */
 uint8_t* model_buffer = nullptr;
 
+/**
+ * @brief Global instance of the AiManager.
+ */
 AiManager AiMgr;
 
+/**
+ * @brief Initializes the AI Manager, loading the model from LittleFS.
+ * @return ESP_OK on success, or an error code on failure.
+ */
 esp_err_t AiManager::begin() {
     if (!LittleFS.exists("/www/anomaly_net.tflite")) {
         ESP_LOGW(TAG, "TinyML - Modelo inactivo. Esperando archivo .tflite via OTA.");
@@ -78,18 +108,33 @@ esp_err_t AiManager::begin() {
     return ESP_OK;
 }
 
+/**
+ * @brief Checks if the AI model is loaded and ready for inference.
+ * @return True if ready, false otherwise.
+ */
 bool AiManager::isReady() const {
     return ml_ready;
 }
 
+/**
+ * @brief Retrieves the Mean Squared Error (MSE) from the last inference.
+ * @return The last calculated MSE value.
+ */
 float AiManager::getLastMSE() const {
     return last_mse;
 }
 
+/**
+ * @brief Retrieves the duration of the last inference in microseconds.
+ * @return Time in microseconds taken for the last inference.
+ */
 int32_t AiManager::getLastInferenceTime() const {
     return last_inference_time_us;
 }
 
+/**
+ * @brief Runs anomaly detection inference on provided telemetry data.
+ */
 bool AiManager::detectAnomaly(float temps[5], float hums[5], float battery) {
     if (!ml_ready) {
         return false;

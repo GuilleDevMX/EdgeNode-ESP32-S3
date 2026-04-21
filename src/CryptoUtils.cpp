@@ -1,9 +1,19 @@
+/**
+ * @file CryptoUtils.cpp
+ * @brief Implementation of cryptographic utilities for secure operations.
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
 #include "CryptoUtils.h"
 #include <esp_log.h>
 #include <esp_mac.h>
 
+/** @brief TAG for ESP-IDF logging. */
 static const char* TAG = "CryptoUtils";
 
+/**
+ * @brief Generates a SHA-256 hash of the given payload.
+ */
 String generateSHA256(const String& payload) {
     mbedtls_md_context_t ctx;
     mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
@@ -48,6 +58,9 @@ String generateSHA256(const String& payload) {
     return hashStr;
 }
 
+/**
+ * @brief Generates a random hex string of the specified length using the hardware TRNG.
+ */
 String generateRandomHex(size_t length) {
     String result = "";
     result.reserve(length);
@@ -60,6 +73,9 @@ String generateRandomHex(size_t length) {
     return result;
 }
 
+/**
+ * @brief Derives a 16-byte AES key from the device's MAC address.
+ */
 void deriveKeyFromMAC(uint8_t* outKey) {
     uint8_t mac[6];
     // Usar la función de lectura de MAC de eFuse en lugar de WiFi para que esté siempre disponible
@@ -72,6 +88,9 @@ void deriveKeyFromMAC(uint8_t* outKey) {
     }
 }
 
+/**
+ * @brief Encrypts a plaintext string using AES-128 ECB mode with a hardware-derived key.
+ */
 String encryptCredential(const String& plaintext) {
     if (plaintext.length() == 0) return "";
     
@@ -125,6 +144,9 @@ String encryptCredential(const String& plaintext) {
     return result;
 }
 
+/**
+ * @brief Decrypts a hex-encoded AES-encrypted string.
+ */
 String decryptCredential(const String& encryptedHex) {
     if (encryptedHex.length() == 0 || encryptedHex.length() % 2 != 0) return "";
     
@@ -186,6 +208,9 @@ String decryptCredential(const String& encryptedHex) {
     return result;
 }
 
+/**
+ * @brief Sanitizes an email field to prevent header injection.
+ */
 String sanitizeEmailField(const String& input) {
     String sanitized = input;
     // Eliminar caracteres de control que permiten header injection
@@ -198,6 +223,9 @@ String sanitizeEmailField(const String& input) {
     return sanitized;
 }
 
+/**
+ * @brief Loads and decrypts a credential from NVS Preferences.
+ */
 String loadEncryptedCredential(Preferences& prefs, const char* key, const char* defaultVal) {
     String val = prefs.getString(key, "");
     if (val == "") return defaultVal;
@@ -206,6 +234,9 @@ String loadEncryptedCredential(Preferences& prefs, const char* key, const char* 
     return decrypted;
 }
 
+/**
+ * @brief Encrypts and saves a credential to NVS Preferences.
+ */
 void saveEncryptedCredential(Preferences& prefs, const char* key, const String& plaintext) {
     if (plaintext == "") {
         prefs.putString(key, "");

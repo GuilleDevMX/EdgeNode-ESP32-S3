@@ -1,3 +1,9 @@
+/**
+ * @file ApiServer.cpp
+ * @brief Implementation file for ApiServer
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
 #include "ApiServer.h"
 #include <WiFi.h>
 #include <AsyncTCP.h>
@@ -47,6 +53,11 @@ AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
 
+/**
+ * @brief Checks if a client IP is rate limited due to too many login attempts.
+ * @param clientIP The IP address of the client.
+ * @return True if rate limited, false otherwise.
+ */
 bool isRateLimited(const String& clientIP) {
 
     if (loginAttempts.size() > 50) loginAttempts.clear();
@@ -77,6 +88,14 @@ bool isRateLimited(const String& clientIP) {
     return false;
 }
 
+/**
+ * @brief Thread-safe read of a String from NVS.
+ * @param ns Namespace string.
+ * @param key Key string.
+ * @param value Reference to store the retrieved String.
+ * @param defaultVal Default value if key is not found.
+ * @return True if read was successful.
+ */
 bool safeNvsRead(const char* ns, const char* key, String& value, const String& defaultVal) {
     if (xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(500)) != pdTRUE) return false;
     Preferences p; p.begin(ns, true);
@@ -84,6 +103,14 @@ bool safeNvsRead(const char* ns, const char* key, String& value, const String& d
     p.end(); xSemaphoreGive(nvsMutex); return true;
 }
 
+/**
+ * @brief Thread-safe read of an integer from NVS.
+ * @param ns Namespace string.
+ * @param key Key string.
+ * @param value Reference to store the retrieved integer.
+ * @param defaultVal Default value if key is not found.
+ * @return True if read was successful.
+ */
 bool safeNvsRead(const char* ns, const char* key, int& value, int defaultVal) {
     if (xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(500)) != pdTRUE) return false;
     Preferences p; p.begin(ns, true);
@@ -91,6 +118,14 @@ bool safeNvsRead(const char* ns, const char* key, int& value, int defaultVal) {
     p.end(); xSemaphoreGive(nvsMutex); return true;
 }
 
+/**
+ * @brief Thread-safe read of a boolean from NVS.
+ * @param ns Namespace string.
+ * @param key Key string.
+ * @param value Reference to store the retrieved boolean.
+ * @param defaultVal Default value if key is not found.
+ * @return True if read was successful.
+ */
 bool safeNvsRead(const char* ns, const char* key, bool& value, bool defaultVal) {
     if (xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(500)) != pdTRUE) return false;
     Preferences p; p.begin(ns, true);
@@ -98,6 +133,14 @@ bool safeNvsRead(const char* ns, const char* key, bool& value, bool defaultVal) 
     p.end(); xSemaphoreGive(nvsMutex); return true;
 }
 
+/**
+ * @brief Thread-safe read of a float from NVS.
+ * @param ns Namespace string.
+ * @param key Key string.
+ * @param value Reference to store the retrieved float.
+ * @param defaultVal Default value if key is not found.
+ * @return True if read was successful.
+ */
 bool safeNvsRead(const char* ns, const char* key, float& value, float defaultVal) {
     if (xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(500)) != pdTRUE) return false;
     Preferences p; p.begin(ns, true);
@@ -105,6 +148,11 @@ bool safeNvsRead(const char* ns, const char* key, float& value, float defaultVal
     p.end(); xSemaphoreGive(nvsMutex); return true;
 }
 
+/**
+ * @brief Checks if the request IP is allowed based on firewall rules.
+ * @param request Pointer to the incoming AsyncWebServerRequest.
+ * @return True if allowed, false if blocked.
+ */
 bool isIpAllowed(AsyncWebServerRequest *request) {
     bool allowlistEnabled = false; String allowedIps = "";
     safeNvsRead("sec", "al_en", allowlistEnabled, false);
@@ -126,6 +174,12 @@ bool isIpAllowed(AsyncWebServerRequest *request) {
     return false;
 }
 
+/**
+ * @brief Validates if the request has the required authorization role via JWT token.
+ * @param request Pointer to the incoming AsyncWebServerRequest.
+ * @param requiredRole The role required to access the endpoint.
+ * @return True if authorized, false otherwise.
+ */
 bool isAuthorized(AsyncWebServerRequest *request, String requiredRole) {
     if(!request->hasHeader("Authorization")) return false;
     
@@ -181,6 +235,10 @@ bool isAuthorized(AsyncWebServerRequest *request, String requiredRole) {
     return authorized;
 }
 
+/**
+ * @brief Appends standard security headers to an HTTP response.
+ * @param response Pointer to the outgoing AsyncWebServerResponse.
+ */
 void addSecurityHeaders(AsyncWebServerResponse *response) {
     response->addHeader("X-Content-Type-Options", "nosniff");
     response->addHeader("X-Frame-Options", "DENY");
@@ -189,6 +247,15 @@ void addSecurityHeaders(AsyncWebServerResponse *response) {
     response->addHeader("Referrer-Policy", "strict-origin-when-cross-origin");
 }
 
+/**
+ * @brief WebSocket event handler for managing client connections and real-time telemetry.
+ * @param server Pointer to the AsyncWebSocket.
+ * @param client Pointer to the AsyncWebSocketClient.
+ * @param type The type of WebSocket event.
+ * @param arg Event argument pointer.
+ * @param data Data payload buffer.
+ * @param len Length of the data payload.
+ */
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
         ESP_LOGI(TAG, "WS - Cliente Conectado. ID: %u.", client->id());
@@ -231,6 +298,9 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     }
 }
 
+/**
+ * @brief Cleans up and stops the Web Server and WebSocket clients gracefully.
+ */
 void ApiServer::cleanup() {
     ws.closeAll();
     server.reset();
@@ -1162,16 +1232,26 @@ esp_err_t ApiServer::begin(bool oobeMode) {
 }
 
 
+/**
+ * @brief Services the WebSocket clients to process incoming frames and cleanup disconnected clients.
+ */
 void ApiServer::handleWebSocket() {
     ws.cleanupClients();
 }
 
+/**
+ * @brief Broadcasts telemetry JSON data to all connected and authenticated WebSocket clients.
+ */
 void ApiServer::broadcastTelemetry(const String& jsonOutput) {
     if(WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED && ws.count() > 0) {
         ws.textAll(jsonOutput);
     }
 }
 
+/**
+ * @brief Gets the current number of connected WebSocket clients.
+ * @return The number of clients.
+ */
 uint32_t ApiServer::getClientCount() {
     return ws.count();
 }

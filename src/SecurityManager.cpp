@@ -1,29 +1,44 @@
+/**
+ * @file SecurityManager.cpp
+ * @brief Implementation of the Security Manager for IAM, authentication, and RBAC.
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
 #include "SecurityManager.h"
 #include "CryptoUtils.h"
 #include <esp_log.h>
 #include <nvs_flash.h>
 #include <esp_check.h>
 
-// Logger tag
+/** @brief TAG for ESP-IDF logging. */
 static const char* TAG = "SecMgr";
 
-// Mutex externo para acceso seguro a NVS (declarado en main.cpp)
+/** @brief Mutex for protecting NVS access across RTOS tasks (declared in main.cpp). */
 extern SemaphoreHandle_t nvsMutex;
 
-// Instanciación del Singleton global
+/** @brief Global singleton instance of the SecurityManagerClass. */
 SecurityManagerClass SecMgr;
 
+/**
+ * @brief Constructor for SecurityManagerClass. Initializes provisioned state.
+ */
 SecurityManagerClass::SecurityManagerClass() {
     provisioned = false;
 }
 
 // --- MOTOR CRIPTOGRÁFICO INTERNO (DEPRECADO - Mantenido para compatibilidad) ---
+/**
+ * @brief Hashes a password payload using SHA-256 (Deprecated).
+ */
 String SecurityManagerClass::hashPassword(String payload) {
     // Redirigir a CryptoUtils para consistencia
     return generateSHA256(payload);
 }
 
 // --- MOTOR CRIPTOGRÁFICO CON SALT (NUEVO) ---
+/**
+ * @brief Hashes a password securely using SHA-256 and a generated/stored salt.
+ */
 String SecurityManagerClass::hashPasswordWithSalt(const String& password, 
                                                    const char* namespaceName, 
                                                    const char* saltKey) {
@@ -56,6 +71,10 @@ String SecurityManagerClass::hashPasswordWithSalt(const String& password,
 }
 
 // --- CICLO DE VIDA ---
+/**
+ * @brief Initializes the Security Manager, checking if the node is provisioned.
+ * @return ESP_OK on success, ESP_FAIL on failure.
+ */
 esp_err_t SecurityManagerClass::begin() {
     ESP_RETURN_ON_FALSE(xSemaphoreTake(nvsMutex, pdMS_TO_TICKS(100)) == pdTRUE, ESP_ERR_TIMEOUT, TAG, "Timeout mutex NVS");
     
@@ -82,11 +101,18 @@ esp_err_t SecurityManagerClass::begin() {
     return ESP_OK;
 }
 
+/**
+ * @brief Checks if the node has an admin account provisioned.
+ * @return True if provisioned, false otherwise.
+ */
 bool SecurityManagerClass::isProvisioned() {
     return provisioned;
 }
 
 // --- GESTIÓN DE CUENTA ROOT ---
+/**
+ * @brief Registers the root administrator account.
+ */
 bool SecurityManagerClass::registerAdmin(const String& username, const String& password) {
     if (username == "" || password == "") {
         ESP_LOGW(TAG, "Intento de registro con datos vacíos");
@@ -130,6 +156,9 @@ bool SecurityManagerClass::registerAdmin(const String& username, const String& p
     return true;
 }
 
+/**
+ * @brief Updates the root administrator's password.
+ */
 void SecurityManagerClass::updateAdminPass(const String& newPassword) {
     if (newPassword == "") {
         ESP_LOGW(TAG, "Intento de actualizar contraseña con valor vacío");
@@ -166,6 +195,9 @@ void SecurityManagerClass::updateAdminPass(const String& newPassword) {
 }
 
 // --- MOTOR DE AUTENTICACIÓN IAM ---
+/**
+ * @brief Authenticates a user based on username and password.
+ */
 bool SecurityManagerClass::authenticateUser(const String& username, const String& password) {
     if (username == "" || password == "") return false;
     
@@ -241,6 +273,9 @@ bool SecurityManagerClass::authenticateUser(const String& username, const String
 }
 
 // --- UTILIDAD: Obtener rol de usuario para RBAC ---
+/**
+ * @brief Retrieves the assigned RBAC role for a given user.
+ */
 String SecurityManagerClass::getUserRole(const String& username) {
     String role = "viewer";  // Rol por defecto
     

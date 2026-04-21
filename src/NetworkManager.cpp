@@ -1,3 +1,9 @@
+/**
+ * @file NetworkManager.cpp
+ * @brief Implementation file for NetworkManager handling WiFi and Out-Of-Box Experience (OOBE).
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
 #include "NetworkManager.h"
 #include "OtaManager.h"
 #include <WiFi.h>
@@ -16,17 +22,41 @@
 #include "DisplayManager.h"
 #include "CryptoUtils.h"
 
+/** @brief TAG for ESP-IDF logging. */
 static const char *TAG = "EdgeSecOps";
 
+/**
+ * @brief External declaration: Checks if the IP address is allowed.
+ */
 extern bool isIpAllowed(AsyncWebServerRequest *request);
+
+/**
+ * @brief External declaration: Adds security headers to HTTP responses.
+ */
 extern void addSecurityHeaders(AsyncWebServerResponse *response);
+
+/**
+ * @brief External declaration: Checks if the requester has the required role.
+ */
 extern bool isAuthorized(AsyncWebServerRequest *request, String requiredRole);
+
+/**
+ * @brief External declaration: Writes an entry to the audit log.
+ */
 extern void writeAuditLog(String severity, String user, String action);
+
+/** @brief External flag indicating a pending reboot. */
 extern bool pendingReboot;
+/** @brief External timestamp of when the reboot was requested. */
 extern unsigned long rebootRequestTime;
 
+/** @brief Global singleton instance of NetworkManager. */
 NetworkManager NetMgr;
 
+/**
+ * @brief Starts the secure provisioning portal (Access Point mode) for OOBE.
+ * @return ESP_OK on success, ESP_FAIL on failure.
+ */
 esp_err_t NetworkManager::startSecureProvisioning() {
     Preferences nvs;
     nvs.begin("wifi", true);
@@ -70,6 +100,10 @@ esp_err_t NetworkManager::startSecureProvisioning() {
     return ESP_FAIL;
 }
 
+/**
+ * @brief Starts BLE-based provisioning and displays the QR code on the screen.
+ * @return ESP_OK on success.
+ */
 esp_err_t NetworkManager::startBLEProvisioningQR() {
     ESP_LOGI(TAG, "Iniciando provisionamiento BLE unificado y mostrando QR...");
     
@@ -90,6 +124,10 @@ esp_err_t NetworkManager::startBLEProvisioningQR() {
     return ESP_OK;
 }
 
+/**
+ * @brief Connects to the operational WiFi network (Station mode) using saved credentials.
+ * @return True if connected successfully, false otherwise.
+ */
 bool NetworkManager::connectToOperationalWiFi() {
     Preferences nvs;
     nvs.begin("net", true); 
@@ -165,6 +203,10 @@ bool NetworkManager::connectToOperationalWiFi() {
     }
 }
 
+/**
+ * @brief Initializes NTP time synchronization.
+ * @return ESP_OK on success.
+ */
 esp_err_t NetworkManager::initNTP() {
     Preferences prefs;
     prefs.begin("wifi", true); 
@@ -176,6 +218,10 @@ esp_err_t NetworkManager::initNTP() {
     return ESP_OK;
 }
 
+/**
+ * @brief Sets up the web server endpoints for the OOBE setup process.
+ * @return ESP_OK on success.
+ */
 esp_err_t NetworkManager::setupWebServerOOBE(AsyncWebServer* server) {
     server->on("/api/oobe/status", HTTP_GET, [](AsyncWebServerRequest *request) {
         bool isClaimed = SecMgr.isProvisioned();
@@ -266,6 +312,10 @@ esp_err_t NetworkManager::setupWebServerOOBE(AsyncWebServer* server) {
     return ESP_OK;
 }
 
+/**
+ * @brief Sets up the web server endpoints for OTA updates.
+ * @return ESP_OK on success.
+ */
 esp_err_t NetworkManager::setupOTAEndpoints(AsyncWebServer* server) {
     AsyncCallbackJsonWebHandler* otaHandler = new AsyncCallbackJsonWebHandler("/api/system/ota", [](AsyncWebServerRequest *request, JsonVariant &json) {
         if(!isIpAllowed(request)) { auto r = request->beginResponse(403); addSecurityHeaders(r); request->send(r); return; }
@@ -290,6 +340,9 @@ esp_err_t NetworkManager::setupOTAEndpoints(AsyncWebServer* server) {
     return ESP_OK;
 }
 
+/**
+ * @brief Routine called periodically in the main loop to handle network maintenance.
+ */
 void NetworkManager::handleLoop() {
     static unsigned long lastWifiCheck = 0;
     if (WiFi.getMode() == WIFI_STA && millis() - lastWifiCheck > 30000) { 

@@ -1,4 +1,10 @@
 /**
+ * @file my_qrcode.c
+ * @brief Implementation file for my_qrcode library.
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
+/**
  * The MIT License (MIT)
  *
  * This library is written and maintained by Richard Moore.
@@ -87,7 +93,12 @@ static const uint16_t NUM_RAW_DATA_MODULES = 567;
 
 #endif
 
-
+/**
+ * @brief Returns the maximum of two integers.
+ * @param a First integer.
+ * @param b Second integer.
+ * @return The larger of the two integers.
+ */
 static int max(int a, int b) {
     if (a > b) { return a; }
     return b;
@@ -103,6 +114,11 @@ static int abs(int value) {
 
 #pragma mark - Mode testing and conversion
 
+/**
+ * @brief Converts a character to its alphanumeric QR code value.
+ * @param c The character to convert.
+ * @return The corresponding alphanumeric value, or -1 if invalid.
+ */
 static int8_t getAlphanumeric(char c) {
     
     if (c >= '0' && c <= '9') { return (c - '0'); }
@@ -123,6 +139,12 @@ static int8_t getAlphanumeric(char c) {
     return -1;
 }
 
+/**
+ * @brief Checks if a string contains only alphanumeric characters valid for QR code alphanumeric mode.
+ * @param text The string to test.
+ * @param length The length of the string.
+ * @return True if strictly alphanumeric, false otherwise.
+ */
 static bool isAlphanumeric(const char *text, uint16_t length) {
     while (length != 0) {
         if (getAlphanumeric(text[--length]) == -1) { return false; }
@@ -130,7 +152,12 @@ static bool isAlphanumeric(const char *text, uint16_t length) {
     return true;
 }
 
-
+/**
+ * @brief Checks if a string contains only numeric characters.
+ * @param text The string to test.
+ * @param length The length of the string.
+ * @return True if strictly numeric, false otherwise.
+ */
 static bool isNumeric(const char *text, uint16_t length) {
     while (length != 0) {
         char c = text[--length];
@@ -147,6 +174,13 @@ static bool isNumeric(const char *text, uint16_t length) {
 // NUMERIC      ( 10,   12,    14);
 // ALPHANUMERIC (  9,   11,    13);
 // BYTE         (  8,   16,    16);
+
+/**
+ * @brief Gets the number of bits needed to encode the character count for a given mode and version.
+ * @param version The QR code version.
+ * @param mode The encoding mode.
+ * @return The number of bits.
+ */
 static char getModeBits(uint8_t version, uint8_t mode) {
     // Note: We use 15 instead of 16; since 15 doesn't exist and we cannot store 16 (8 + 8) in 3 bits
     // hex(int("".join(reversed([('00' + bin(x - 8)[2:])[-3:] for x in [10, 9, 8, 12, 11, 15, 14, 13, 15]])), 2))
@@ -169,6 +203,9 @@ static char getModeBits(uint8_t version, uint8_t mode) {
 
 #pragma mark - BitBucket
 
+/**
+ * @brief Simple bit bucket structure for writing bits.
+ */
 typedef struct BitBucket {
     uint32_t bitOffsetOrWidth;
     uint16_t capacityBytes;
@@ -186,14 +223,30 @@ void bb_dump(BitBucket *bitBuffer) {
 }
 */
 
+/**
+ * @brief Gets the buffer size in bytes for a QR code grid of the specified dimension.
+ * @param size The grid width/height.
+ * @return Size in bytes.
+ */
 static uint16_t bb_getGridSizeBytes(uint8_t size) {
     return (((size * size) + 7) / 8);
 }
 
+/**
+ * @brief Gets the buffer size in bytes required to store a specific number of bits.
+ * @param bits Number of bits.
+ * @return Size in bytes.
+ */
 static uint16_t bb_getBufferSizeBytes(uint32_t bits) {
     return ((bits + 7) / 8);
 }
 
+/**
+ * @brief Initializes a bit buffer.
+ * @param bitBuffer Pointer to the BitBucket.
+ * @param data Pointer to the memory buffer.
+ * @param capacityBytes The capacity of the buffer in bytes.
+ */
 static void bb_initBuffer(BitBucket *bitBuffer, uint8_t *data, int32_t capacityBytes) {
     bitBuffer->bitOffsetOrWidth = 0;
     bitBuffer->capacityBytes = capacityBytes;
@@ -202,6 +255,12 @@ static void bb_initBuffer(BitBucket *bitBuffer, uint8_t *data, int32_t capacityB
     memset(data, 0, bitBuffer->capacityBytes);
 }
 
+/**
+ * @brief Initializes a bit grid (2D array of bits).
+ * @param bitGrid Pointer to the BitBucket grid.
+ * @param data Pointer to the memory buffer.
+ * @param size Width and height of the grid.
+ */
 static void bb_initGrid(BitBucket *bitGrid, uint8_t *data, uint8_t size) {
     bitGrid->bitOffsetOrWidth = size;
     bitGrid->capacityBytes = bb_getGridSizeBytes(size);
@@ -210,6 +269,12 @@ static void bb_initGrid(BitBucket *bitGrid, uint8_t *data, uint8_t size) {
     memset(data, 0, bitGrid->capacityBytes);
 }
 
+/**
+ * @brief Appends bits to the bit buffer.
+ * @param bitBuffer Pointer to the BitBucket.
+ * @param val Value containing the bits.
+ * @param length Number of bits to append from the value.
+ */
 static void bb_appendBits(BitBucket *bitBuffer, uint32_t val, uint8_t length) {
     uint32_t offset = bitBuffer->bitOffsetOrWidth;
     for (int8_t i = length - 1; i >= 0; i--, offset++) {
@@ -217,6 +282,7 @@ static void bb_appendBits(BitBucket *bitBuffer, uint32_t val, uint8_t length) {
     }
     bitBuffer->bitOffsetOrWidth = offset;
 }
+
 /*
 void bb_setBits(BitBucket *bitBuffer, uint32_t val, int offset, uint8_t length) {
     for (int8_t i = length - 1; i >= 0; i--, offset++) {
@@ -224,6 +290,14 @@ void bb_setBits(BitBucket *bitBuffer, uint32_t val, int offset, uint8_t length) 
     }
 }
 */
+
+/**
+ * @brief Sets a specific bit in a bit grid.
+ * @param bitGrid Pointer to the BitBucket grid.
+ * @param x X coordinate.
+ * @param y Y coordinate.
+ * @param on True to set the bit (1), false to clear it (0).
+ */
 static void bb_setBit(BitBucket *bitGrid, uint8_t x, uint8_t y, bool on) {
     uint32_t offset = y * bitGrid->bitOffsetOrWidth + x;
     uint8_t mask = 1 << (7 - (offset & 0x07));
@@ -234,6 +308,13 @@ static void bb_setBit(BitBucket *bitGrid, uint8_t x, uint8_t y, bool on) {
     }
 }
 
+/**
+ * @brief Inverts a specific bit in a bit grid if the invert flag is true.
+ * @param bitGrid Pointer to the BitBucket grid.
+ * @param x X coordinate.
+ * @param y Y coordinate.
+ * @param invert True to invert the current bit state.
+ */
 static void bb_invertBit(BitBucket *bitGrid, uint8_t x, uint8_t y, bool invert) {
     uint32_t offset = y * bitGrid->bitOffsetOrWidth + x;
     uint8_t mask = 1 << (7 - (offset & 0x07));
@@ -245,6 +326,13 @@ static void bb_invertBit(BitBucket *bitGrid, uint8_t x, uint8_t y, bool invert) 
     }
 }
 
+/**
+ * @brief Gets the value of a specific bit in a bit grid.
+ * @param bitGrid Pointer to the BitBucket grid.
+ * @param x X coordinate.
+ * @param y Y coordinate.
+ * @return True if the bit is 1, false if 0.
+ */
 static bool bb_getBit(BitBucket *bitGrid, uint8_t x, uint8_t y) {
     uint32_t offset = y * bitGrid->bitOffsetOrWidth + x;
     return (bitGrid->data[offset >> 3] & (1 << (7 - (offset & 0x07)))) != 0;
@@ -253,10 +341,12 @@ static bool bb_getBit(BitBucket *bitGrid, uint8_t x, uint8_t y) {
 
 #pragma mark - Drawing Patterns
 
-// XORs the data modules in this QR Code with the given mask pattern. Due to XOR's mathematical
-// properties, calling applyMask(m) twice with the same value is equivalent to no change at all.
-// This means it is possible to apply a mask, undo it, and try another mask. Note that a final
-// well-formed QR Code symbol needs exactly one mask applied (not zero, not two, etc.).
+/**
+ * @brief Applies or unapplies a mask pattern to the QR code modules.
+ * @param modules The QR code modules grid.
+ * @param isFunction Grid indicating which modules are function modules (not to be masked).
+ * @param mask The mask pattern index (0-7).
+ */
 static void applyMask(BitBucket *modules, BitBucket *isFunction, uint8_t mask) {
     uint8_t size = modules->bitOffsetOrWidth;
     
@@ -280,12 +370,26 @@ static void applyMask(BitBucket *modules, BitBucket *isFunction, uint8_t mask) {
     }
 }
 
+/**
+ * @brief Sets a function module in the grids.
+ * @param modules The QR code modules grid.
+ * @param isFunction Grid to mark this module as a function module.
+ * @param x X coordinate.
+ * @param y Y coordinate.
+ * @param on True if the module is black.
+ */
 static void setFunctionModule(BitBucket *modules, BitBucket *isFunction, uint8_t x, uint8_t y, bool on) {
     bb_setBit(modules, x, y, on);
     bb_setBit(isFunction, x, y, true);
 }
 
-// Draws a 9*9 finder pattern including the border separator, with the center module at (x, y).
+/**
+ * @brief Draws a finder pattern centered at (x, y).
+ * @param modules The QR code modules grid.
+ * @param isFunction The function modules grid.
+ * @param x Center X coordinate.
+ * @param y Center Y coordinate.
+ */
 static void drawFinderPattern(BitBucket *modules, BitBucket *isFunction, uint8_t x, uint8_t y) {
     uint8_t size = modules->bitOffsetOrWidth;
 
@@ -300,7 +404,13 @@ static void drawFinderPattern(BitBucket *modules, BitBucket *isFunction, uint8_t
     }
 }
 
-// Draws a 5*5 alignment pattern, with the center module at (x, y).
+/**
+ * @brief Draws an alignment pattern centered at (x, y).
+ * @param modules The QR code modules grid.
+ * @param isFunction The function modules grid.
+ * @param x Center X coordinate.
+ * @param y Center Y coordinate.
+ */
 static void drawAlignmentPattern(BitBucket *modules, BitBucket *isFunction, uint8_t x, uint8_t y) {
     for (int8_t i = -2; i <= 2; i++) {
         for (int8_t j = -2; j <= 2; j++) {
@@ -309,8 +419,13 @@ static void drawAlignmentPattern(BitBucket *modules, BitBucket *isFunction, uint
     }
 }
 
-// Draws two copies of the format bits (with its own error correction code)
-// based on the given mask and this object's error correction level field.
+/**
+ * @brief Draws the format bits for the QR code.
+ * @param modules The QR code modules grid.
+ * @param isFunction The function modules grid.
+ * @param ecc The error correction level.
+ * @param mask The mask pattern.
+ */
 static void drawFormatBits(BitBucket *modules, BitBucket *isFunction, uint8_t ecc, uint8_t mask) {
     
     uint8_t size = modules->bitOffsetOrWidth;
@@ -351,8 +466,12 @@ static void drawFormatBits(BitBucket *modules, BitBucket *isFunction, uint8_t ec
 }
 
 
-// Draws two copies of the version bits (with its own error correction code),
-// based on this object's version field (which only has an effect for 7 <= version <= 40).
+/**
+ * @brief Draws the version information bits for QR codes version >= 7.
+ * @param modules The QR code modules grid.
+ * @param isFunction The function modules grid.
+ * @param version The QR code version.
+ */
 static void drawVersion(BitBucket *modules, BitBucket *isFunction, uint8_t version) {
     
     int8_t size = modules->bitOffsetOrWidth;
@@ -382,6 +501,13 @@ static void drawVersion(BitBucket *modules, BitBucket *isFunction, uint8_t versi
 #endif
 }
 
+/**
+ * @brief Draws all function patterns including finders, timing, and alignment patterns.
+ * @param modules The QR code modules grid.
+ * @param isFunction The function modules grid.
+ * @param version The QR code version.
+ * @param ecc The error correction level.
+ */
 static void drawFunctionPatterns(BitBucket *modules, BitBucket *isFunction, uint8_t version, uint8_t ecc) {
     
     uint8_t size = modules->bitOffsetOrWidth;
@@ -440,8 +566,12 @@ static void drawFunctionPatterns(BitBucket *modules, BitBucket *isFunction, uint
 }
 
 
-// Draws the given sequence of 8-bit codewords (data and error correction) onto the entire
-// data area of this QR Code symbol. Function modules need to be marked off before this is called.
+/**
+ * @brief Draws the data and error correction codewords onto the QR code grid.
+ * @param modules The QR code modules grid.
+ * @param isFunction The function modules grid.
+ * @param codewords The encoded codewords.
+ */
 static void drawCodewords(BitBucket *modules, BitBucket *isFunction, BitBucket *codewords) {
     
     uint32_t bitLength = codewords->bitOffsetOrWidth;
@@ -481,9 +611,11 @@ static void drawCodewords(BitBucket *modules, BitBucket *isFunction, BitBucket *
 #define PENALTY_N3     40
 #define PENALTY_N4     10
 
-// Calculates and returns the penalty score based on state of this QR Code's current modules.
-// This is used by the automatic mask choice algorithm to find the mask pattern that yields the lowest score.
-// @TODO: This can be optimized by working with the bytes instead of bits.
+/**
+ * @brief Calculates the penalty score for a specific mask pattern.
+ * @param modules The QR code modules grid.
+ * @return The penalty score.
+ */
 static uint32_t getPenaltyScore(BitBucket *modules) {
     uint32_t result = 0;
     
@@ -576,6 +708,12 @@ static uint32_t getPenaltyScore(BitBucket *modules) {
 
 #pragma mark - Reed-Solomon Generator
 
+/**
+ * @brief Multiplies two elements in GF(2^8/0x11D).
+ * @param x First element.
+ * @param y Second element.
+ * @return The product.
+ */
 static uint8_t rs_multiply(uint8_t x, uint8_t y) {
     // Russian peasant multiplication
     // See: https://en.wikipedia.org/wiki/Ancient_Egyptian_multiplication
@@ -587,6 +725,11 @@ static uint8_t rs_multiply(uint8_t x, uint8_t y) {
     return z;
 }
 
+/**
+ * @brief Initializes the Reed-Solomon generator polynomial.
+ * @param degree The polynomial degree.
+ * @param coeff Output array for polynomial coefficients.
+ */
 static void rs_init(uint8_t degree, uint8_t *coeff) {
     memset(coeff, 0, degree);
     coeff[degree - 1] = 1;
@@ -607,6 +750,15 @@ static void rs_init(uint8_t degree, uint8_t *coeff) {
     }
 }
 
+/**
+ * @brief Computes the Reed-Solomon remainder (error correction codewords).
+ * @param degree The generator polynomial degree.
+ * @param coeff The generator polynomial coefficients.
+ * @param data The message data.
+ * @param length The length of the message data.
+ * @param result Output array for the remainder.
+ * @param stride Interleaving stride.
+ */
 static void rs_getRemainder(uint8_t degree, uint8_t *coeff, uint8_t *data, uint8_t length, uint8_t *result, uint8_t stride) {
     // Compute the remainder by performing polynomial division
     
@@ -630,6 +782,14 @@ static void rs_getRemainder(uint8_t degree, uint8_t *coeff, uint8_t *data, uint8
 
 #pragma mark - QrCode
 
+/**
+ * @brief Encodes text data into codewords.
+ * @param dataCodewords Output bit bucket for codewords.
+ * @param text The input data.
+ * @param length The length of the input data.
+ * @param version The QR code version.
+ * @return The encoding mode used.
+ */
 static int8_t encodeDataCodewords(BitBucket *dataCodewords, const uint8_t *text, uint16_t length, uint8_t version) {
     int8_t mode = MODE_BYTE;
     
@@ -690,6 +850,12 @@ static int8_t encodeDataCodewords(BitBucket *dataCodewords, const uint8_t *text,
     return mode;
 }
 
+/**
+ * @brief Generates error correction codewords and appends them to the data.
+ * @param version The QR code version.
+ * @param ecc The error correction level.
+ * @param data The data codewords bucket to append to.
+ */
 static void performErrorCorrection(uint8_t version, uint8_t ecc, BitBucket *data) {
     
     // See: http://www.thonky.com/qr-code-tutorial/structure-final-message

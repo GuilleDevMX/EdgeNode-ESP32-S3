@@ -1,12 +1,27 @@
+/**
+ * @file OtaManager.cpp
+ * @brief Implementation of the OTA (Over-The-Air) update manager.
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
 #include "OtaManager.h"
 #include <esp_log.h>
 #include <esp_https_ota.h>
 #include <esp_crt_bundle.h>
 
+/**
+ * @brief TAG used for ESP-IDF logging.
+ */
 static const char* TAG = "OtaMgr";
 
+/**
+ * @brief Global instance of the OtaManager.
+ */
 OtaManager OtaMgr;
 
+/**
+ * @brief FreeRTOS task that performs the HTTPS OTA update.
+ */
 void OtaManager::ota_task(void *pvParameter) {
     OtaManager* mgr = (OtaManager*)pvParameter;
     
@@ -30,6 +45,9 @@ void OtaManager::ota_task(void *pvParameter) {
     vTaskDelete(NULL);
 }
 
+/**
+ * @brief Starts the OTA update process.
+ */
 void OtaManager::begin(const char* url) {
     if (_status == OTA_START) {
         ESP_LOGW(TAG, "OTA ya está en progreso");
@@ -41,10 +59,18 @@ void OtaManager::begin(const char* url) {
     xTaskCreate(&OtaManager::ota_task, "ota_task", 8192, this, 5, NULL);
 }
 
+/**
+ * @brief Retrieves the current OTA update status.
+ * @return Current OtaStatus.
+ */
 OtaStatus OtaManager::getStatus() {
     return _status;
 }
 
+/**
+ * @brief Sets the current OTA update status.
+ * @param status The new OtaStatus to set.
+ */
 void OtaManager::setStatus(OtaStatus status) {
     _status = status;
 }

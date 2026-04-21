@@ -1,3 +1,10 @@
+/**
+ * @file SecurityManager.h
+ * @brief Manages authentication, authorization, and provisioning state.
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
+
 #ifndef SECURITY_MANAGER_H
 #define SECURITY_MANAGER_H
 
@@ -6,48 +13,82 @@
 #include <freertos/semphr.h>
 
 /**
- * @brief Gestiona autenticación, autorización y estado de aprovisionamiento
- * @note Singleton global accesible vía SecMgr
- * @warning Requiere nvsMutex externo para acceso thread-safe a NVS
+ * @brief Manages authentication, authorization and provisioning state.
+ * @note Global singleton accessible via SecMgr.
+ * @warning Requires external nvsMutex for thread-safe access to NVS.
  */
 class SecurityManagerClass {
 private:
-    bool provisioned;
+    bool provisioned; /**< Flag indicating if the device has been provisioned */
     
     /**
-     * @brief Genera hash SHA256 de contraseña (internamente usa CryptoUtils)
-     * @deprecated Usar hashPasswordWithSalt() para nueva implementación
+     * @brief Generates SHA256 hash of a password (internally uses CryptoUtils).
+     * @deprecated Use hashPasswordWithSalt() for new implementation.
+     * @param payload Password string to hash.
+     * @return Hexadecimal string of the hash.
      */
     String hashPassword(String payload);
     
     /**
-     * @brief Genera hash con salt almacenado en NVS
-     * @param password Contraseña en texto plano
-     * @param namespaceName Namespace de Preferences donde buscar salt
-     * @param saltKey Clave dentro del namespace para el salt
-     * @return Hash hexadecimal o "" si error
+     * @brief Generates hash with salt stored in NVS.
+     * @param password Plain text password.
+     * @param namespaceName Preferences namespace where salt is looked up.
+     * @param saltKey Key within the namespace for the salt.
+     * @return Hexadecimal hash or "" if error.
      */
     String hashPasswordWithSalt(const String& password, const char* namespaceName, const char* saltKey);
 
 public:
+    /**
+     * @brief Default constructor for SecurityManagerClass.
+     */
     SecurityManagerClass();
     
-    // Ciclo de vida
+    /**
+     * @brief Initializes the security manager and checks provisioning state.
+     * @return esp_err_t ESP_OK on success, or an error code on failure.
+     */
     esp_err_t begin();
+
+    /**
+     * @brief Checks if the device is provisioned.
+     * @return true if provisioned, false otherwise.
+     */
     bool isProvisioned();
     
-    // Gestión de cuenta Root (OOBE y Actualizaciones)
+    /**
+     * @brief Registers the Root/Admin account during OOBE or updates.
+     * @param username The administrator username.
+     * @param password The administrator password.
+     * @return true if successful, false otherwise.
+     */
     bool registerAdmin(const String& username, const String& password);
+
+    /**
+     * @brief Updates the administrator password.
+     * @param newPassword The new password to set.
+     */
     void updateAdminPass(const String& newPassword);
     
-    // Motor de Autenticación Universal
+    /**
+     * @brief Universal Authentication Engine.
+     * @param username The username to authenticate.
+     * @param password The password to authenticate.
+     * @return true if authentication is successful, false otherwise.
+     */
     bool authenticateUser(const String& username, const String& password);
     
-    // Utilidad para obtener rol de usuario (para RBAC)
+    /**
+     * @brief Utility to get user role (for Role-Based Access Control).
+     * @param username The username to lookup.
+     * @return String representing the user's role.
+     */
     String getUserRole(const String& username);
 };
 
-// Declaración de la instancia global (Singleton)
+/**
+ * @brief Global singleton instance of the SecurityManagerClass.
+ */
 extern SecurityManagerClass SecMgr;
 
 #endif // SECURITY_MANAGER_H

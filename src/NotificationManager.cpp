@@ -1,3 +1,9 @@
+/**
+ * @file NotificationManager.cpp
+ * @brief Implementation of the Notification Manager for Email, WhatsApp, and Cloud alerts.
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
 #include "NotificationManager.h"
 #include "CryptoUtils.h"
 #include "SecurityManager.h"
@@ -9,23 +15,37 @@
 #include <Preferences.h>
 #include <esp_check.h>
 
+/** @brief TAG for ESP-IDF logging. */
 static const char *TAG = "NOTIF_MGR";
 
-// Instancia global singleton
+/** @brief Global singleton instance of the NotificationManager. */
 NotificationManager NotifMgr;
 
-// Declarar la función externa de auditoría (ubicada en main.cpp)
+/**
+ * @brief External declaration of the audit logging function (located in main.cpp).
+ */
 extern void writeAuditLog(String severity, String user, String action);
 
 // (Opcional) Declarar función externa de sanitización si existe en SecurityManager
 extern String sanitizeEmailField(String input);
 
+/**
+ * @brief Constructor for NotificationManager.
+ */
 NotificationManager::NotificationManager() {}
 
+/**
+ * @brief Callback function for SMTP status updates.
+ * @param status The current SMTP status.
+ */
 void NotificationManager::smtpCallback(SMTP_Status status) {
     ESP_LOGI(TAG, "Estado SMTP: %s", status.info());
 }
 
+/**
+ * @brief Initializes the Notification Manager and mail client network reconnection.
+ * @return ESP_OK on successful initialization.
+ */
 esp_err_t NotificationManager::begin() {
     MailClient.networkReconnect(true);
     smtp.callback(smtpCallback);
@@ -38,6 +58,9 @@ esp_err_t NotificationManager::begin() {
 // MÉTODOS DE COMUNICACIÓN BASE
 // =========================================================================
 
+/**
+ * @brief Sends an email alert with the specified subject and HTML message.
+ */
 bool NotificationManager::sendEmail(String subject, String htmlMessage) {
     // subject = sanitizeEmailField(subject); // Descomentar si implementaste sanitizeEmailField
     
@@ -87,6 +110,9 @@ bool NotificationManager::sendEmail(String subject, String htmlMessage) {
     return false;
 }
 
+/**
+ * @brief Sends a WhatsApp alert using the CallMeBot API.
+ */
 void NotificationManager::sendWhatsAppAlert(String message) {
     if (WiFi.status() != WL_CONNECTED) return;
     
@@ -114,6 +140,9 @@ void NotificationManager::sendWhatsAppAlert(String message) {
     http.end();
 }
 
+/**
+ * @brief Synchronizes JSON telemetry data to a configured cloud webhook.
+ */
 void NotificationManager::syncDataToCloud(String jsonPayload) {
     if (WiFi.status() != WL_CONNECTED) return;
     
@@ -164,6 +193,9 @@ void NotificationManager::syncDataToCloud(String jsonPayload) {
 // MOTORES DE EVALUACIÓN Y DISPARO
 // =========================================================================
 
+/**
+ * @brief Checks current sensor readings against configured thresholds to trigger alerts.
+ */
 void NotificationManager::checkSensorThresholds(float temps[5], float hums[5], float battery) {
     if (WiFi.getMode() != WIFI_STA || WiFi.status() != WL_CONNECTED) return;
     
@@ -222,6 +254,10 @@ void NotificationManager::checkSensorThresholds(float temps[5], float hums[5], f
     }
 }
 
+/**
+ * @brief Sends a general security alert via Email and WhatsApp.
+ * @param eventDescription Description of the security event.
+ */
 void NotificationManager::sendSecurityAlert(const String& eventDescription) {
     String emailMsg = "<b>🛡️ ALERTA DE SEGURIDAD</b><br><br>Evento detectado: " + eventDescription;
     String waMsg = "🛡️ ALERTA DE SEGURIDAD\nEvento: " + eventDescription + "\nRevise el panel de EdgeSecOps.";
@@ -230,6 +266,9 @@ void NotificationManager::sendSecurityAlert(const String& eventDescription) {
     sendEmail("🛡️ ALERTA: Evento de Seguridad", emailMsg);
 }
 
+/**
+ * @brief Sends a recovery token to the administrator's email.
+ */
 void NotificationManager::sendRecoveryToken(const String& adminEmail, const String& recoveryToken) {
     String emailMsg = "<b>🔑 Token de Recuperación</b><br><br>Su token es:<br><code>" + recoveryToken + "</code>";
     // Por seguridad, los tokens de recuperación usualmente SOLO se envían por correo, no por WhatsApp.

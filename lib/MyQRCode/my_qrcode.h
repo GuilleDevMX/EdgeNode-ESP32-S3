@@ -1,4 +1,11 @@
 /**
+ * @file my_qrcode.h
+ * @brief Header for the QR code generation library.
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
+
+/**
  * The MIT License (MIT)
  *
  * This library is written and maintained by Richard Moore.
@@ -46,33 +53,41 @@ static const bool true = 1;
 #include <stdint.h>
 
 
-// QR Code Format Encoding
+/** @brief QR Code Format Encoding: Numeric mode */
 #define MODE_NUMERIC        0
+/** @brief QR Code Format Encoding: Alphanumeric mode */
 #define MODE_ALPHANUMERIC   1
+/** @brief QR Code Format Encoding: Byte mode */
 #define MODE_BYTE           2
 
 
-// Error Correction Code Levels
+/** @brief Error Correction Code Level: Low */
 #define ECC_LOW            0
+/** @brief Error Correction Code Level: Medium */
 #define ECC_MEDIUM         1
+/** @brief Error Correction Code Level: Quartile */
 #define ECC_QUARTILE       2
+/** @brief Error Correction Code Level: High */
 #define ECC_HIGH           3
 
 
 // If set to non-zero, this library can ONLY produce QR codes at that version
 // This saves a lot of dynamic memory, as the codeword tables are skipped
 #ifndef LOCK_VERSION
+/** @brief Lock version to save memory (0 disables locking). */
 #define LOCK_VERSION       0
 #endif
 
-
+/**
+ * @brief Structure representing a QR Code configuration and data.
+ */
 typedef struct QRCode {
-    uint8_t version;
-    uint8_t size;
-    uint8_t ecc;
-    uint8_t mode;
-    uint8_t mask;
-    uint8_t *modules;
+    uint8_t version; /**< @brief The QR code version (1 to 40) */
+    uint8_t size;    /**< @brief The dimension of the QR code in modules */
+    uint8_t ecc;     /**< @brief The error correction level used */
+    uint8_t mode;    /**< @brief The encoding mode used */
+    uint8_t mask;    /**< @brief The mask pattern used */
+    uint8_t *modules; /**< @brief Pointer to the module (pixel) data buffer */
 } QRCode;
 
 
@@ -81,12 +96,43 @@ extern "C"{
 #endif  /* __cplusplus */
 
 
-
+/**
+ * @brief Gets the buffer size required for a given QR code version.
+ * @param version The QR code version.
+ * @return The required buffer size in bytes.
+ */
 uint16_t qrcode_getBufferSize(uint8_t version);
 
+/**
+ * @brief Initializes a QR code structure with text data.
+ * @param qrcode Pointer to the QRCode structure to initialize.
+ * @param modules Pointer to the memory buffer for the QR code modules.
+ * @param version The QR code version.
+ * @param ecc The error correction level.
+ * @param data The null-terminated text string to encode.
+ * @return 0 on success, or a negative error code.
+ */
 int8_t qrcode_initText(QRCode *qrcode, uint8_t *modules, uint8_t version, uint8_t ecc, const char *data);
+
+/**
+ * @brief Initializes a QR code structure with byte data.
+ * @param qrcode Pointer to the QRCode structure to initialize.
+ * @param modules Pointer to the memory buffer for the QR code modules.
+ * @param version The QR code version.
+ * @param ecc The error correction level.
+ * @param data Pointer to the byte data to encode.
+ * @param length The length of the byte data.
+ * @return 0 on success, or a negative error code.
+ */
 int8_t qrcode_initBytes(QRCode *qrcode, uint8_t *modules, uint8_t version, uint8_t ecc, uint8_t *data, uint16_t length);
 
+/**
+ * @brief Gets the value of a specific module (pixel) in the QR code.
+ * @param qrcode Pointer to the QRCode structure.
+ * @param x The X coordinate of the module.
+ * @param y The Y coordinate of the module.
+ * @return True if the module is black, false if white.
+ */
 bool qrcode_getModule(QRCode *qrcode, uint8_t x, uint8_t y);
 
 

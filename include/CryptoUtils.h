@@ -1,3 +1,10 @@
+/**
+ * @file CryptoUtils.h
+ * @brief Cryptographic utilities for secure operations and NVS storage.
+ * @author EdgeSecOps Team
+ * @date 2026
+ */
+
 #ifndef CRYPTO_UTILS_H
 #define CRYPTO_UTILS_H
 
@@ -10,60 +17,60 @@
 #include <Preferences.h>
 
 /**
- * @brief Genera hash SHA256 con validación de errores
- * @param payload Cadena a hashear
- * @return String con hash en hexadecimal, o "" si error
+ * @brief Generates SHA256 hash with error validation.
+ * @param payload String to hash.
+ * @return String with hexadecimal hash, or "" if error.
  */
 String generateSHA256(const String& payload);
 
 /**
- * @brief Genera string hexadecimal seguro usando TRNG del ESP32
- * @param length Longitud deseada del output en caracteres
- * @return String hexadecimal de longitud solicitada
+ * @brief Generates secure hexadecimal string using ESP32 TRNG.
+ * @param length Desired output length in characters.
+ * @return Hexadecimal string of requested length.
  */
 String generateRandomHex(size_t length);
 
 /**
- * @brief Deriva clave AES-128 desde MAC del dispositivo
- * @param outKey Buffer de 16 bytes para la clave derivada
+ * @brief Derives AES-128 key from device MAC address.
+ * @param outKey 16-byte buffer for the derived key.
  */
 void deriveKeyFromMAC(uint8_t* outKey);
 
 /**
- * @brief Encripta credencial con AES-128-ECB para almacenamiento en NVS
- * @param plaintext Cadena a encriptar
- * @return String hexadecimal con dato encriptado
+ * @brief Encrypts credential with AES-128-ECB for NVS storage.
+ * @param plaintext String to encrypt.
+ * @return Hexadecimal string with encrypted data.
  */
 String encryptCredential(const String& plaintext);
 
 /**
- * @brief Desencripta credencial previamente encriptada con encryptCredential
- * @param encryptedHex String hexadecimal encriptado
- * @return Cadena original desencriptada, o "" si error
+ * @brief Decrypts credential previously encrypted with encryptCredential.
+ * @param encryptedHex Encrypted hexadecimal string.
+ * @return Original decrypted string, or "" if error.
  */
 String decryptCredential(const String& encryptedHex);
 
 /**
- * @brief Sanitiza campo de email para prevenir header injection (\r\n)
- * @param input Cadena a sanitizar
- * @return Cadena limpia de caracteres de control
+ * @brief Sanitizes email field to prevent header injection (\\r\\n).
+ * @param input String to sanitize.
+ * @return String clean of control characters.
  */
 String sanitizeEmailField(const String& input);
 
 /**
- * @brief Carga una credencial desencriptándola. Si no está encriptada, devuelve texto plano (fallback).
- * @param prefs Objeto Preferences ya abierto
- * @param key Clave NVS
- * @param defaultVal Valor por defecto
- * @return Cadena en texto plano
+ * @brief Loads a credential by decrypting it. If not encrypted, returns plain text (fallback).
+ * @param prefs Already opened Preferences object.
+ * @param key NVS key.
+ * @param defaultVal Default value.
+ * @return Plain text string.
  */
 String loadEncryptedCredential(Preferences& prefs, const char* key, const char* defaultVal = "");
 
 /**
- * @brief Encripta y guarda una credencial en NVS.
- * @param prefs Objeto Preferences ya abierto
- * @param key Clave NVS
- * @param plaintext Texto plano a guardar
+ * @brief Encrypts and saves a credential in NVS.
+ * @param prefs Already opened Preferences object.
+ * @param key NVS key.
+ * @param plaintext Plain text to save.
  */
 void saveEncryptedCredential(Preferences& prefs, const char* key, const String& plaintext);
 
